@@ -1,6 +1,6 @@
 const Footer = () => {
   return (
-    <footer className="bg-gradient-to-r from-gray-900/15 to-gray-800/75 text-white border-t border-gray-700">
+    <footer className="bg-gradient-to-b from-gray-900/80 via-gray-900/90 to-black/90 text-white border-t border-gray-700 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Compact grid layout */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -8,7 +8,7 @@ const Footer = () => {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center space-x-2 mb-3">
               <img 
-                src="/path-to-your-logo.png" 
+                src="/src/assets/logo.png" 
                 alt="CRICXI Logo" 
                 className="h-8 w-8 rounded-full border-2 border-yellow-400"
               />
