@@ -82,7 +82,7 @@ function VSAnimation() {
 
   useEffect(() => {
     // Initialize audio
-    audioRef.current = new Audio('/src/assets/audio/explosion.mp3');
+    audioRef.current = new Audio('/public/rivalry.mp3');
     audioRef.current.volume = 0.3;
 
     const interval = setInterval(() => {
@@ -382,7 +382,7 @@ const Matches = () => {
       <div 
         className="fixed inset-0 -z-20 w-full h-full"
         style={{ 
-          backgroundImage: "url('/src/assets/stadium.jpg')",
+          backgroundImage: "url('/public/stadium.jpg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundAttachment: "fixed",

@@ -8,7 +8,7 @@ const Footer = () => {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center space-x-2 mb-3">
               <img 
-                src="/src/assets/logo.png" 
+                src="/public/logo.png" 
                 alt="CRICXI Logo" 
                 className="h-8 w-8 rounded-full border-2 border-yellow-400"
               />

@@ -31,9 +31,8 @@ const Navbar = () => {
           {/* Logo and brand name */}
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              {/* Replace with your actual logo image */}
               <img 
-                src="/src/assets/logo.png" 
+                src="/public/logo.png" 
                 alt="CRICXI Logo" 
                 className="h-10 w-10 rounded-full border-2 border-yellow-40"
               />
