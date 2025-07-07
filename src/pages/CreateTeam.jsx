@@ -33,7 +33,7 @@ const CreateTeam = () => {
           `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
           {
             headers: {
-              'x-apihub-key': 'A1xFtWOrcrQMJjRlpWwno20J9UX82pMZmgsfSvD9pFd6qpnzc3',
+              'x-apihub-key': 'Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H',
               'x-apihub-host': 'Cricbuzz-Official-Cricket-API.allthingsdev.co',
               'x-apihub-endpoint': 'be37c2f5-3a12-44bd-8d8b-ba779eb89279'
             }

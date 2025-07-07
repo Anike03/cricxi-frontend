@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { fetchBackendUpcomingMatches } from "../services/cricbuzz";
+import axios from "axios";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Stars, Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -206,14 +206,125 @@ const Matches = () => {
   useEffect(() => {
     const getMatches = async () => {
       try {
-        const res = await fetchBackendUpcomingMatches();
-        if (Array.isArray(res.data)) {
-          setMatches(res.data);
+        // Fetch from both APIs in parallel
+        const [cricbuzzResponse, backendResponse] = await Promise.all([
+          // Cricbuzz API call
+          axios({
+            method: 'get',
+            url: 'https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/matches/upcoming',
+            headers: { 
+              'x-apihub-key': 'Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H', 
+              'x-apihub-host': 'Cricbuzz-Official-Cricket-API.allthingsdev.co', 
+              'x-apihub-endpoint': '1943a818-98e9-48ea-8d1c-1554e116ef44'
+            }
+          }),
+          // Your backend API call
+          axios.get('https://your-render-backend-url.com/api/matches/upcoming')
+        ]);
+
+        // Process Cricbuzz matches
+        const cricbuzzMatches = [];
+        cricbuzzResponse.data.typeMatches.forEach(typeMatch => {
+          typeMatch.seriesMatches.forEach(seriesMatch => {
+            if (seriesMatch.seriesAdWrapper?.matches) {
+              seriesMatch.seriesAdWrapper.matches.forEach(match => {
+                cricbuzzMatches.push({
+                  matchId: match.matchInfo.matchId,
+                  cricbuzzId: match.matchInfo.matchId,
+                  matchDesc: match.matchInfo.matchDesc,
+                  team1: match.matchInfo.team1.teamName,
+                  team2: match.matchInfo.team2.teamName,
+                  startDate: match.matchInfo.startDate,
+                  venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
+                  matchFormat: match.matchInfo.matchFormat,
+                  seriesName: match.matchInfo.seriesName,
+                  source: 'cricbuzz'
+                });
+              });
+            }
+          });
+        });
+
+        // Process backend matches (assuming similar structure)
+        const backendMatches = backendResponse.data.data.map(match => ({
+          matchId: match.matchId,
+          cricbuzzId: match.cricbuzzId,
+          matchDesc: match.matchDesc,
+          team1: match.team1,
+          team2: match.team2,
+          startDate: match.startDate,
+          venue: match.venue,
+          matchFormat: match.matchFormat,
+          seriesName: match.seriesName || "Custom Match",
+          source: 'backend'
+        }));
+
+        // Combine and deduplicate matches (prioritizing backend matches if IDs conflict)
+        const combinedMatches = [...backendMatches];
+        const backendMatchIds = new Set(backendMatches.map(m => m.matchId));
+        
+        cricbuzzMatches.forEach(match => {
+          if (!backendMatchIds.has(match.matchId)) {
+            combinedMatches.push(match);
+          }
+        });
+
+        // Sort by date and limit to 10 matches
+        const sortedMatches = combinedMatches
+          .sort((a, b) => parseInt(a.startDate) - parseInt(b.startDate))
+          .slice(0, 10);
+
+        setMatches(sortedMatches);
+      } catch (error) {
+        console.error("Error fetching matches:", error);
+        // If one API fails, try to continue with the other
+        try {
+          // Fallback to just Cricbuzz API
+          const cricbuzzResponse = await axios({
+            method: 'get',
+            url: 'https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/matches/upcoming',
+            headers: { 
+              'x-apihub-key': 'Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H', 
+              'x-apihub-host': 'Cricbuzz-Official-Cricket-API.allthingsdev.co', 
+              'x-apihub-endpoint': '1943a818-98e9-48ea-8d1c-1554e116ef44'
+            }
+          });
+
+          const cricbuzzMatches = [];
+          cricbuzzResponse.data.typeMatches.forEach(typeMatch => {
+            typeMatch.seriesMatches.forEach(seriesMatch => {
+              if (seriesMatch.seriesAdWrapper?.matches) {
+                seriesMatch.seriesAdWrapper.matches.forEach(match => {
+                  cricbuzzMatches.push({
+                    matchId: match.matchInfo.matchId,
+                    cricbuzzId: match.matchInfo.matchId,
+                    matchDesc: match.matchInfo.matchDesc,
+                    team1: match.matchInfo.team1.teamName,
+                    team2: match.matchInfo.team2.teamName,
+                    startDate: match.matchInfo.startDate,
+                    venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
+                    matchFormat: match.matchInfo.matchFormat,
+                    seriesName: match.matchInfo.seriesName,
+                    source: 'cricbuzz'
+                  });
+                });
+              }
+            });
+          });
+
+          const sortedMatches = cricbuzzMatches
+            .sort((a, b) => parseInt(a.startDate) - parseInt(b.startDate))
+            .slice(0, 10);
+
+          setMatches(sortedMatches);
+        } catch (fallbackError) {
+          console.error("Fallback fetch failed:", fallbackError);
         }
       } finally {
         setLoading(false);
       }
     };
+    
     getMatches();
 
     // Initialize audio
@@ -227,7 +338,7 @@ const Matches = () => {
         audioRef.current.play().catch(e => console.log("Audio play error:", e));
         setTimeout(() => setThunder(false), 300);
       }
-    }, 10000); // Play every 10 seconds
+    }, 10000);
 
     // Cleanup function
     return () => {
@@ -338,13 +449,22 @@ const Matches = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {matches.map((match, idx) => (
                 <motion.div
-                  key={idx}
+                  key={`${match.source}-${match.matchId}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
                   whileHover={{ scale: 1.03 }}
                   className="bg-gradient-to-br from-gray-900/80 to-gray-800/90 p-6 rounded-xl border border-gray-700 shadow-2xl backdrop-blur-sm overflow-hidden relative"
                 >
+                  {/* Source indicator */}
+                  <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold ${
+                    match.source === 'cricbuzz' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-yellow-500 text-black'
+                  }`}>
+                    {match.source === 'cricbuzz' ? 'Official' : 'Custom'}
+                  </div>
+                  
                   {/* Rivalry team badges */}
                   <div className="relative h-36 mb-6 -mx-6 -mt-6 bg-gradient-to-r from-blue-900/30 to-red-900/30">
                     <TeamBadge team={match.team1} color="#3b82f6" position="left-6 top-1/2 transform -translate-y-1/2" />
@@ -359,6 +479,7 @@ const Matches = () => {
                     <h3 className="text-xl font-bold text-center text-yellow-400 mb-3">
                       {match.matchDesc}
                     </h3>
+                    <p className="text-sm text-center text-gray-400 mb-2">{match.seriesName}</p>
                     
                     {/* Team names display */}
                     <div className="flex justify-between items-center mb-4 px-4">
@@ -382,7 +503,7 @@ const Matches = () => {
                       <svg className="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                       </svg>
-                      {new Date(match.startDate).toLocaleString("en-IN", {
+                      {new Date(parseInt(match.startDate)).toLocaleString("en-IN", {
                         day: 'numeric',
                         month: 'short',
                         hour: '2-digit',

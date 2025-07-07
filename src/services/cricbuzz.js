@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const BASE_URL = "https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co";
-const API_KEY = "A1xFtWOrcrQMJjRlpWwno20J9UX82pMZmgsfSvD9pFd6qpnzc3";
+const API_KEY = "Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H";
 const HOST = "Cricbuzz-Official-Cricket-API.allthingsdev.co";
 
 // 🛠️ Headers factory
