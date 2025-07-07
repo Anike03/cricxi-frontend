@@ -241,7 +241,7 @@ const Matches = () => {
     };
   }, [matches.length]);
 
-  // Rivalry animation - pulsing team colors
+  // Team Badge with full team name
   const TeamBadge = ({ team, color, position }) => (
     <motion.div
       initial={{ scale: 1 }}
@@ -251,13 +251,17 @@ const Matches = () => {
         repeat: Infinity,
         repeatType: "reverse"
       }}
-      className={`absolute ${position} w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-lg z-10`}
+      className={`absolute ${position} w-28 h-28 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-lg z-10`}
       style={{ 
         backgroundColor: color,
         boxShadow: `0 0 20px ${color}`
       }}
     >
-      {team.charAt(0)}
+      <div className="text-center px-1">
+        {team.split(' ').map((word, i) => (
+          <div key={i}>{word}</div>
+        ))}
+      </div>
     </motion.div>
   );
 
@@ -342,7 +346,7 @@ const Matches = () => {
                   className="bg-gradient-to-br from-gray-900/80 to-gray-800/90 p-6 rounded-xl border border-gray-700 shadow-2xl backdrop-blur-sm overflow-hidden relative"
                 >
                   {/* Rivalry team badges */}
-                  <div className="relative h-32 mb-6 -mx-6 -mt-6 bg-gradient-to-r from-blue-900/30 to-red-900/30">
+                  <div className="relative h-36 mb-6 -mx-6 -mt-6 bg-gradient-to-r from-blue-900/30 to-red-900/30">
                     <TeamBadge team={match.team1} color="#3b82f6" position="left-6 top-1/2 transform -translate-y-1/2" />
                     <TeamBadge team={match.team2} color="#ef4444" position="right-6 top-1/2 transform -translate-y-1/2" />
                     
@@ -350,11 +354,23 @@ const Matches = () => {
                     <VSAnimation />
                   </div>
 
-                  {/* Match details */}
+                  {/* Match details with team names */}
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-center text-yellow-400 mb-3">
                       {match.matchDesc}
                     </h3>
+                    
+                    {/* Team names display */}
+                    <div className="flex justify-between items-center mb-4 px-4">
+                      <span className="font-medium text-blue-300 text-sm text-center">
+                        {match.team1}
+                      </span>
+                      <span className="mx-2 text-white font-bold">vs</span>
+                      <span className="font-medium text-red-300 text-sm text-center">
+                        {match.team2}
+                      </span>
+                    </div>
+                    
                     <div className="flex items-center justify-center text-sm text-gray-300 mb-2">
                       <svg className="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
@@ -384,7 +400,7 @@ const Matches = () => {
                       JOIN CONTEST
                     </Link>
                     <Link
-                      to={`/create-team/${match.matchId}`}
+                     to={`/create-team/${match.cricbuzzId}?internalId=${match.matchId}`}
                       className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold text-sm rounded-lg text-center transition-all border border-gray-600"
                     >
                       CREATE TEAM

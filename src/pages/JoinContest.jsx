@@ -1,98 +1,172 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { getAuth } from 'firebase/auth';
 
 const JoinContest = () => {
   const { contestId } = useParams();
   const navigate = useNavigate();
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  // State
   const [contest, setContest] = useState(null);
   const [teams, setTeams] = useState([]);
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
+  // Fetch contest details
   useEffect(() => {
-    const fetchContestAndTeams = async () => {
+    const fetchContest = async () => {
       try {
-        const contestRes = await axios.get(`https://cricxi.onrender.com/api/contests/${contestId}`);
-        setContest(contestRes.data);
-
-        const teamRes = await axios.get(`https://cricxi.onrender.com/api/team/by-contest/${contestId}`, {
-          withCredentials: true,
-        });
-        setTeams(teamRes.data || []);
+        setLoading(true);
+        const res = await axios.get(`https://cricxi.onrender.com/api/contests/${contestId}`);
+        setContest(res.data);
       } catch (err) {
-        console.error("Error loading contest or teams", err);
+        setError('Failed to load contest details');
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchContestAndTeams();
+    fetchContest();
   }, [contestId]);
 
+  // Fetch user's teams for this match
+  useEffect(() => {
+    if (!contest?.matchId) return;
+
+    const fetchTeams = async () => {
+      try {
+        const res = await axios.get(
+          `https://cricxi.onrender.com/api/team/match/${contest.matchId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${await user.getIdToken()}`
+            }
+          }
+        );
+        setTeams(res.data);
+      } catch (err) {
+        console.error('Failed to fetch teams', err);
+      }
+    };
+
+    fetchTeams();
+  }, [contest?.matchId, user]);
+
+  // Handle contest joining
   const handleJoin = async () => {
     if (!selectedTeamId) {
-      alert("Please select a team to join.");
+      setError('Please select a team');
       return;
     }
 
     try {
+      setLoading(true);
       await axios.post(
-        `https://cricxi.onrender.com/api/contest-entry/join`,
+        'https://cricxi.onrender.com/api/contest-entry/join',
         {
           contestId,
-          teamId: selectedTeamId,
+          teamId: selectedTeamId
         },
         {
-          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${await user.getIdToken()}`
+          }
         }
       );
-      navigate("/profile");
+      navigate('/my-contests');
     } catch (err) {
-      console.error("Failed to join contest", err);
-      alert("Failed to join contest.");
+      setError(err.response?.data?.error || 'Failed to join contest');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[url('/stadium-bg.jpg')] bg-cover bg-center py-10 px-6 text-white">
-      <div className="max-w-3xl mx-auto bg-black/70 backdrop-blur p-6 rounded-xl">
-        <h1 className="text-3xl font-bold text-yellow-400 mb-4">Join Contest</h1>
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Join Contest</h1>
+      
+      {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">{error}</div>}
 
-        {contest ? (
-          <div className="mb-6 border border-gray-700 p-4 rounded">
-            <h2 className="text-xl font-semibold text-green-300">{contest.name}</h2>
-            <p>🏆 Prize: ₹{contest.totalPrize}</p>
-            <p>💸 Entry Fee: ₹{contest.entryFee}</p>
-            <p>👥 Max Participants: {contest.maxParticipants}</p>
+      {contest && (
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-2">{contest.name}</h2>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-gray-600">Prize Pool</p>
+              <p className="font-medium">₹{contest.totalPrize}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Entry Fee</p>
+              <p className="font-medium">₹{contest.entryFee}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Spots</p>
+              <p className="font-medium">{contest.joined}/{contest.maxParticipants}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white shadow rounded-lg p-6">
+        <h2 className="text-xl font-semibold mb-4">Select Your Team</h2>
+        
+        {teams.length > 0 ? (
+          <div className="space-y-3">
+            {teams.map(team => (
+              <div
+                key={team._id}
+                onClick={() => setSelectedTeamId(team._id)}
+                className={`p-4 border rounded cursor-pointer ${
+                  selectedTeamId === team._id
+                    ? 'bg-blue-50 border-blue-500'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium">{team.teamName}</h3>
+                  <span className="text-sm text-gray-600">
+                    {team.players.length}/11 players
+                  </span>
+                </div>
+                <div className="mt-2 text-sm">
+                  <p>
+                    Captain: {team.players.find(p => p.isCaptain)?.name || 'Not set'}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <p>Loading contest...</p>
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">You haven't created any teams for this match yet</p>
+            <button
+              onClick={() => navigate(`/create-team/${contest?.matchId}`)}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Create Team Now
+            </button>
+          </div>
         )}
 
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Select a team to join:</h3>
-          {teams.length > 0 ? (
-            <select
-              value={selectedTeamId}
-              onChange={(e) => setSelectedTeamId(e.target.value)}
-              className="w-full p-2 rounded bg-gray-800 text-white"
-            >
-              <option value="">-- Select Your Team --</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name || `Team ${team.id}`}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <p className="text-sm italic text-red-300">You have no teams for this contest yet.</p>
-          )}
-        </div>
-
-        <button
-          onClick={handleJoin}
-          className="mt-6 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded text-white text-lg"
-        >
-          Join Contest
-        </button>
+        {teams.length > 0 && (
+          <button
+            onClick={handleJoin}
+            disabled={loading || !selectedTeamId}
+            className={`mt-6 w-full py-2 rounded font-medium ${
+              selectedTeamId
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {loading ? 'Joining...' : 'Join Contest'}
+          </button>
+        )}
       </div>
     </div>
   );
