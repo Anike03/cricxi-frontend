@@ -30,11 +30,13 @@ export default defineConfig([
           argsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_'
         }
+        
       ],
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true }
       ],
     },
+    
   },
 ])

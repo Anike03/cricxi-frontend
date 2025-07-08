@@ -32,7 +32,7 @@ const Navbar = () => {
           <div className="flex-shrink-0 flex items-center">
             <Link to="/" className="flex items-center space-x-2">
               <img 
-                src="/public/logo.png" 
+                src="logo.png" 
                 alt="CRICXI Logo" 
                 className="h-10 w-10 rounded-full border-2 border-yellow-40"
               />

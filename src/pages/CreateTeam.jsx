@@ -1,327 +1,503 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { getAuth } from 'firebase/auth';
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
+import axios from "axios";
+import { motion } from "framer-motion";
 
 const CreateTeam = () => {
-  const { matchId } = useParams(); // Cricbuzz match ID used to fetch squad
-  const internalId = new URLSearchParams(window.location.search).get('internalId'); // MongoDB match ID for saving
+  const { matchId } = useParams();
   const navigate = useNavigate();
-  const auth = getAuth();
-  const user = auth.currentUser;
-
-
-  // State
-  const [squad, setSquad] = useState([]);
+  const location = useLocation();
+  const matchData = location.state?.matchData;
+  
+  const [squad, setSquad] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedPlayers, setSelectedPlayers] = useState([]);
-  const [teamName, setTeamName] = useState('');
+  const [teamName, setTeamName] = useState("");
   const [captainId, setCaptainId] = useState(null);
   const [viceCaptainId, setViceCaptainId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [seriesSquads, setSeriesSquads] = useState(null);
 
-  // Fetch squad data from Cricbuzz API
+  // Fetch squad data
   useEffect(() => {
     const fetchSquad = async () => {
       try {
         setLoading(true);
-        setError('');
-        console.log(`Fetching squad for matchId: ${matchId}`);
-
-        const response = await axios.get(
-          `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
-          {
-            headers: {
-              'x-apihub-key': 'Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H',
-              'x-apihub-host': 'Cricbuzz-Official-Cricket-API.allthingsdev.co',
-              'x-apihub-endpoint': 'be37c2f5-3a12-44bd-8d8b-ba779eb89279'
+        
+        // First try to fetch match-specific squad
+        try {
+          const response = await axios.get(
+            `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
+            {
+              headers: {
+                "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                "x-apihub-endpoint": "be37c2f5-3a12-44bd-8d8b-ba779eb89279"
+              }
             }
-          }
-        );
-
-        console.log('Squad API response:', response.data);
-
-        if (!response.data.team1 || !response.data.team2) {
-          setError('Squad data not yet available for this match.');
+          );
+          setSquad(response.data);
           return;
+        } catch (matchSquadError) {
+          console.log("Match squad not available, trying series squad");
         }
 
-        const team1Players = response.data.team1.players["playing XI"].concat(response.data.team1.players.bench || []);
-        const team2Players = response.data.team2.players["playing XI"].concat(response.data.team2.players.bench || []);
+        // If match squad not available, fetch series squads first
+        if (matchData?.seriesId) {
+          try {
+            // First get all squads for the series
+            const seriesSquadsResponse = await axios.get(
+              `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads`,
+              {
+                headers: {
+                  "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                  "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                  "x-apihub-endpoint": "038d223b-aca5-4096-8eb1-184dd0c09513"
+                }
+              }
+            );
+            setSeriesSquads(seriesSquadsResponse.data.squads);
 
-        setSquad([
-          ...team1Players.map(p => ({ ...p, team: 'TEAM_A' })),
-          ...team2Players.map(p => ({ ...p, team: 'TEAM_B' }))
-        ]);
+            // Determine which squad type to use based on match format
+            const squadType = matchData.matchFormat.includes('T20') ? 'T20' : 'ODI';
+            
+            // Find the relevant squad IDs for both teams
+            const team1Squad = seriesSquadsResponse.data.squads.find(
+              s => s.teamId === matchData.team1.teamId && s.squadType.includes(squadType)
+            );
+            const team2Squad = seriesSquadsResponse.data.squads.find(
+              s => s.teamId === matchData.team2.teamId && s.squadType.includes(squadType)
+            );
+
+            if (team1Squad && team2Squad) {
+              // Fetch both team squads in parallel
+              const [team1Response, team2Response] = await Promise.all([
+                axios.get(
+                  `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team1Squad.squadId}`,
+                  {
+                    headers: {
+                      "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                      "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                      "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
+                    }
+                  }
+                ),
+                axios.get(
+                  `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team2Squad.squadId}`,
+                  {
+                    headers: {
+                      "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                      "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                      "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
+                    }
+                  }
+                )
+              ]);
+
+              // Format the squad data to match our expected structure
+              const formattedSquad = {
+                team1: {
+                  team: matchData.team1,
+                  players: {
+                    "playing XI": team1Response.data.players,
+                    bench: [] // Empty bench for series squad
+                  }
+                },
+                team2: {
+                  team: matchData.team2,
+                  players: {
+                    "playing XI": team2Response.data.players,
+                    bench: [] // Empty bench for series squad
+                  }
+                }
+              };
+
+              setSquad(formattedSquad);
+              return;
+            }
+          } catch (seriesError) {
+            console.error("Error fetching series squad:", seriesError);
+          }
+        }
+
+        // If no squad available at all
+        setError("Squad information not yet available for this match");
+        setSquad(null);
+        
       } catch (err) {
-        setError(`Failed to load squad: ${err.message}`);
-        console.error('Error details:', err.response?.data || err);
+        console.error("Error fetching squad:", err);
+        setError("Failed to load squad data. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchSquad();
-  }, [matchId]);
+  }, [matchId, matchData]);
 
-  // Toggle player selection
-  const togglePlayer = (player) => {
-    const isSelected = selectedPlayers.some(p => p.id === player.id);
-    
-    if (isSelected) {
-      setSelectedPlayers(prev => prev.filter(p => p.id !== player.id));
+  // Helper function to normalize player data from different API responses
+  const normalizePlayer = (player, teamId) => {
+    return {
+      id: player.id || player.playerId,
+      name: player.name || player.fullName,
+      fullName: player.fullName || player.name,
+      role: player.role || player.type || "Player",
+      teamId: teamId,
+      captain: player.captain || false,
+      keeper: player.keeper || false,
+      battingStyle: player.battingStyle,
+      bowlingStyle: player.bowlingStyle
+    };
+  };
+
+  // Handle player selection
+  const togglePlayerSelection = (player) => {
+    if (selectedPlayers.some(p => p.id === player.id)) {
+      // Remove player if already selected
+      setSelectedPlayers(selectedPlayers.filter(p => p.id !== player.id));
       if (captainId === player.id) setCaptainId(null);
       if (viceCaptainId === player.id) setViceCaptainId(null);
-    } else {
-      // Validate before adding
-      if (selectedPlayers.length >= 11) {
-        setError('Maximum 11 players allowed');
-        return;
-      }
-
-      // Check team balance (max 7 from one team)
-      const teamCount = selectedPlayers.filter(p => p.team === player.team).length;
-      if (teamCount >= 7) {
-        setError(`Maximum 7 players from ${player.team === 'TEAM_A' ? 'Team A' : 'Team B'}`);
-        return;
-      }
-
-      setSelectedPlayers(prev => [...prev, player]);
-      setError('');
+    } else if (selectedPlayers.length < 11) {
+      // Add player if less than 11 selected
+      setSelectedPlayers([...selectedPlayers, player]);
     }
   };
 
-  // Submit team to backend
-  const handleSubmit = async () => {
-    if (selectedPlayers.length !== 11) {
-      setError('Please select exactly 11 players');
-      return;
-    }
-
-    if (!captainId || !viceCaptainId) {
-      setError('Please select captain and vice-captain');
-      return;
-    }
-
-    if (!isRoleValid()) {
-      setError('Please ensure your team meets the role requirements');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      const token = await user.getIdToken();
-      const response = await axios.post(
-        'https://cricxi.onrender.com/api/team/create',
-        {
-          matchId: internalId || matchId,
-          teamName: teamName || `My Team ${new Date().toLocaleTimeString()}`,
-          players: selectedPlayers.map(p => ({
-            playerId: p.id,
-            name: p.name,
-            role: p.role,
-            team: p.team,
-            isCaptain: p.id === captainId,
-            isViceCaptain: p.id === viceCaptainId
-          }))
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      console.log('Team created successfully:', response.data);
-      setSuccess('Team created successfully!');
-      setTimeout(() => navigate(`/contests/${matchId}`), 1500);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save team');
-      console.error('Error creating team:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Check if team is valid (11 players, 1 captain, 1 vice-captain)
+  const isTeamValid = () => {
+    const hasValidRoles = 
+      countPlayersByRole('Batter') >= 1 &&
+      (countPlayersByRole('WK') >= 1 || countPlayersByRole('WK-Batter') >= 1) &&
+      countPlayersByRole('Allrounder') >= 1 &&
+      countPlayersByRole('Bowler') >= 3;
+    
+    return selectedPlayers.length === 11 && 
+           captainId && 
+           viceCaptainId && 
+           teamName.trim() &&
+           hasValidRoles;
   };
 
-  // Role counts for validation
-  const roleCounts = {
-    'WK-Batter': selectedPlayers.filter(p => p.role === 'WK-Batter').length,
-    'Batter': selectedPlayers.filter(p => p.role === 'Batter').length,
-    'Bowling Allrounder': selectedPlayers.filter(p => p.role === 'Bowling Allrounder').length,
-    'Bowler': selectedPlayers.filter(p => p.role === 'Bowler').length
+  // Submit team
+  const handleSubmit = () => {
+    if (!isTeamValid()) return;
+    
+    const teamData = {
+      matchId,
+      teamName,
+      players: selectedPlayers.map(player => ({
+        id: player.id,
+        name: player.name,
+        role: player.role,
+        isCaptain: player.id === captainId,
+        isViceCaptain: player.id === viceCaptainId,
+        teamId: player.teamId
+      })),
+      createdAt: new Date().toISOString()
+    };
+
+    // In a real app, you would save this to your backend
+    console.log("Team submitted:", teamData);
+    alert("Team created successfully!");
+    navigate(`/contests/${matchId}`);
   };
 
-  // Check if role constraints are met
-  const isRoleValid = () => {
+  // Count players by role
+  const countPlayersByRole = (role) => {
+    return selectedPlayers.filter(p => p.role.includes(role)).length;
+  };
+
+  // Count players by team
+  const countPlayersByTeam = (teamId) => {
+    return selectedPlayers.filter(p => p.teamId === teamId).length;
+  };
+
+  if (loading) {
     return (
-      roleCounts['WK-Batter'] >= 1 && roleCounts['WK-Batter'] <= 4 &&
-      roleCounts['Batter'] >= 3 && roleCounts['Batter'] <= 5 &&
-      roleCounts['Bowling Allrounder'] >= 1 && roleCounts['Bowling Allrounder'] <= 3 &&
-      roleCounts['Bowler'] >= 3 && roleCounts['Bowler'] <= 5
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center p-6 bg-red-900/50 rounded-lg max-w-md">
+          <h3 className="text-xl font-bold mb-2">Error Loading Squad</h3>
+          <p className="mb-4">{error}</p>
+          <Link 
+            to="/matches" 
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition"
+          >
+            Back to Matches
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!squad) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center p-6 bg-gray-800/50 rounded-lg max-w-md">
+          <h3 className="text-xl font-bold mb-2">No Squad Available</h3>
+          <p className="mb-4">Squad information is not available for this match yet.</p>
+          <Link 
+            to="/matches" 
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition"
+          >
+            Back to Matches
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Create Team for Match {matchId}</h1>
-      
-      {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">{error}</div>}
-      {success && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4">{success}</div>}
-
-      {loading && squad.length === 0 ? (
-        <div className="text-center py-4">Loading squad data...</div>
-      ) : squad.length === 0 ? (
-        <div className="text-center py-4">
-          No squad data available yet. Please check back closer to the match time.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Player Selection */}
-          <div className="md:col-span-2 bg-white shadow rounded-lg p-4">
-            <h2 className="text-xl font-semibold mb-4">Select Players ({selectedPlayers.length}/11)</h2>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Team Name</label>
-              <input
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Enter team name"
-                className="w-full p-2 border rounded"
-              />
-            </div>
-
-            <div className="mb-4">
-              <h3 className="font-medium mb-2">Team Composition Rules</h3>
-              <ul className="text-sm space-y-1">
-                <li>Total Players: 11</li>
-                <li>Maximum 7 players from one team</li>
-                <li>WK-Batter: 1-4 (Current: {roleCounts['WK-Batter']})</li>
-                <li>Batter: 3-5 (Current: {roleCounts['Batter']})</li>
-                <li>Allrounder: 1-3 (Current: {roleCounts['Bowling Allrounder']})</li>
-                <li>Bowler: 3-5 (Current: {roleCounts['Bowler']})</li>
-              </ul>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {squad.map(player => (
-                <div
-                  key={player.id}
-                  onClick={() => togglePlayer(player)}
-                  className={`p-3 border rounded cursor-pointer transition-colors ${
-                    selectedPlayers.some(p => p.id === player.id)
-                      ? player.id === captainId
-                        ? 'bg-yellow-100 border-yellow-500'
-                        : player.id === viceCaptainId
-                          ? 'bg-blue-100 border-blue-500'
-                          : 'bg-green-100 border-green-500'
-                      : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <h3 className="font-medium">{player.name}</h3>
-                  <p className="text-sm text-gray-600">{player.role} • {player.team === 'TEAM_A' ? 'Team A' : 'Team B'}</p>
-                </div>
-              ))}
-            </div>
+    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 pb-24">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-red-500">
+            CREATE YOUR TEAM
+          </h1>
+          <div className="h-1 bg-gradient-to-r from-red-500 via-yellow-500 to-transparent w-1/2 mx-auto mb-4"></div>
+          
+          {/* Team name input */}
+          <div className="max-w-md mx-auto">
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder="Enter your team name"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              maxLength={30}
+            />
           </div>
+        </div>
 
-          {/* Team Summary */}
-          <div className="bg-white shadow rounded-lg p-4">
-            <h2 className="text-xl font-semibold mb-4">Your Team</h2>
-            
-            {selectedPlayers.length > 0 ? (
-              <>
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Captain</label>
-                    <select
-                      value={captainId || ''}
-                      onChange={(e) => setCaptainId(e.target.value)}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value="">Select Captain</option>
-                      {selectedPlayers.map(player => (
-                        <option key={player.id} value={player.id}>
-                          {player.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Vice Captain</label>
-                    <select
-                      value={viceCaptainId || ''}
-                      onChange={(e) => setViceCaptainId(e.target.value)}
-                      className="w-full p-2 border rounded"
-                    >
-                      <option value="">Select Vice Captain</option>
-                      {selectedPlayers
-                        .filter(p => p.id !== captainId)
-                        .map(player => (
-                          <option key={player.id} value={player.id}>
-                            {player.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <h3 className="font-medium mb-2">Team Composition</h3>
-                  <ul className="text-sm space-y-1">
-                    <li className={roleCounts['WK-Batter'] < 1 || roleCounts['WK-Batter'] > 4 ? 'text-red-500' : ''}>
-                      WK-Batter: {roleCounts['WK-Batter']} (1-4)
-                    </li>
-                    <li className={roleCounts['Batter'] < 3 || roleCounts['Batter'] > 5 ? 'text-red-500' : ''}>
-                      Batter: {roleCounts['Batter']} (3-5)
-                    </li>
-                    <li className={roleCounts['Bowling Allrounder'] < 1 || roleCounts['Bowling Allrounder'] > 3 ? 'text-red-500' : ''}>
-                      Allrounder: {roleCounts['Bowling Allrounder']} (1-3)
-                    </li>
-                    <li className={roleCounts['Bowler'] < 3 || roleCounts['Bowler'] > 5 ? 'text-red-500' : ''}>
-                      Bowler: {roleCounts['Bowler']} (3-5)
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="mb-4">
-                  <h3 className="font-medium mb-2">Selected Players</h3>
-                  <ul className="text-sm space-y-1 max-h-60 overflow-y-auto">
-                    {selectedPlayers.map(player => (
-                      <li key={player.id} className="flex justify-between items-center">
-                        <span>
-                          {player.name} 
-                          {player.id === captainId && ' (C)'}
-                          {player.id === viceCaptainId && ' (VC)'}
-                        </span>
-                        <span className="text-gray-500">{player.role}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || selectedPlayers.length !== 11 || !isRoleValid() || !captainId || !viceCaptainId}
-                  className={`w-full py-2 rounded font-medium ${
-                    selectedPlayers.length === 11 && isRoleValid() && captainId && viceCaptainId
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {loading ? 'Saving...' : 'Submit Team'}
-                </button>
-              </>
-            ) : (
-              <p className="text-gray-500">Select players from the left panel</p>
+        {/* Team selection summary */}
+        <div className="bg-gray-800/50 rounded-lg p-4 mb-8 border border-gray-700">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">
+              Selected Players: {selectedPlayers.length}/11
+            </h2>
+            {selectedPlayers.length > 0 && (
+              <button 
+                onClick={() => {
+                  setSelectedPlayers([]);
+                  setCaptainId(null);
+                  setViceCaptainId(null);
+                }}
+                className="text-red-400 hover:text-red-300 text-sm"
+              >
+                Clear Team
+              </button>
             )}
           </div>
+
+          {/* Team distribution */}
+          <div className="flex justify-between mb-4 text-sm">
+            <div>
+              {squad.team1.team.teamSName || squad.team1.team.teamName}: {countPlayersByTeam(squad.team1.team.teamId)}
+            </div>
+            <div>
+              {squad.team2.team.teamSName || squad.team2.team.teamName}: {countPlayersByTeam(squad.team2.team.teamId)}
+            </div>
+          </div>
+
+          {/* Role constraints */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className={`p-2 rounded text-center ${countPlayersByRole('Batter') >= 1 ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+              Batters: {countPlayersByRole('Batter')} (Min 1)
+            </div>
+            <div className={`p-2 rounded text-center ${(countPlayersByRole('WK') + countPlayersByRole('WK-Batter')) >= 1 ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+              WK: {countPlayersByRole('WK') + countPlayersByRole('WK-Batter')} (Min 1)
+            </div>
+            <div className={`p-2 rounded text-center ${countPlayersByRole('Allrounder') >= 1 ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+              Allrounders: {countPlayersByRole('Allrounder')} (Min 1)
+            </div>
+            <div className={`p-2 rounded text-center ${countPlayersByRole('Bowler') >= 3 ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+              Bowlers: {countPlayersByRole('Bowler')} (Min 3)
+            </div>
+          </div>
+
+          {/* Selected players list */}
+          {selectedPlayers.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {selectedPlayers.map((player) => (
+                <motion.div
+                  key={player.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-3 rounded-lg border ${
+                    player.id === captainId 
+                      ? 'border-yellow-500 bg-yellow-900/20' 
+                      : player.id === viceCaptainId 
+                        ? 'border-blue-500 bg-blue-900/20' 
+                        : 'border-gray-700'
+                  } bg-gray-700/30`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-medium truncate">{player.name}</span>
+                    <span className="text-xs bg-gray-600 px-1 rounded">{player.role}</span>
+                  </div>
+                  <div className="flex justify-between text-xs mt-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCaptainId(player.id === captainId ? null : player.id);
+                        if (player.id === viceCaptainId) setViceCaptainId(null);
+                      }}
+                      className={`px-2 py-1 rounded ${
+                        player.id === captainId 
+                          ? 'bg-yellow-600 text-white' 
+                          : 'bg-gray-600 hover:bg-gray-500'
+                      }`}
+                    >
+                      C
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViceCaptainId(player.id === viceCaptainId ? null : player.id);
+                        if (player.id === captainId) setCaptainId(null);
+                      }}
+                      className={`px-2 py-1 rounded ${
+                        player.id === viceCaptainId 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-600 hover:bg-gray-500'
+                      }`}
+                    >
+                      VC
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-400">
+              Select players from the squads below
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Teams and squads */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Team 1 */}
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {squad.team1.team.teamSName || squad.team1.team.teamName}
+              </h2>
+              <span className="ml-auto text-sm bg-blue-500 px-2 py-1 rounded">
+                {countPlayersByTeam(squad.team1.team.teamId)} selected
+              </span>
+            </div>
+
+            <h3 className="font-medium mb-2 text-yellow-400">Squad</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {squad.team1.players["playing XI"].map((player) => {
+                const normalizedPlayer = normalizePlayer(player, squad.team1.team.teamId);
+                return (
+                  <motion.div
+                    key={normalizedPlayer.id}
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => togglePlayerSelection(normalizedPlayer)}
+                    className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                      selectedPlayers.some(p => p.id === normalizedPlayer.id) 
+                        ? 'bg-green-900/50' 
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{normalizedPlayer.name}</div>
+                      <div className="text-xs text-gray-300">{normalizedPlayer.role}</div>
+                    </div>
+                    {normalizedPlayer.captain && (
+                      <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
+                    )}
+                    {normalizedPlayer.keeper && (
+                      <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Team 2 */}
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {squad.team2.team.teamSName || squad.team2.team.teamName}
+              </h2>
+              <span className="ml-auto text-sm bg-blue-500 px-2 py-1 rounded">
+                {countPlayersByTeam(squad.team2.team.teamId)} selected
+              </span>
+            </div>
+
+            <h3 className="font-medium mb-2 text-yellow-400">Squad</h3>
+            <div className="grid grid-cols-1 gap-2">
+              {squad.team2.players["playing XI"].map((player) => {
+                const normalizedPlayer = normalizePlayer(player, squad.team2.team.teamId);
+                return (
+                  <motion.div
+                    key={normalizedPlayer.id}
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => togglePlayerSelection(normalizedPlayer)}
+                    className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                      selectedPlayers.some(p => p.id === normalizedPlayer.id) 
+                        ? 'bg-green-900/50' 
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{normalizedPlayer.name}</div>
+                      <div className="text-xs text-gray-300">{normalizedPlayer.role}</div>
+                    </div>
+                    {normalizedPlayer.captain && (
+                      <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
+                    )}
+                    {normalizedPlayer.keeper && (
+                      <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Submit button */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-sm p-4 border-t border-gray-700">
+          <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <div>
+              <div className="text-sm text-gray-300">
+                Players: {selectedPlayers.length}/11
+              </div>
+              <div className="text-sm text-gray-300">
+                {captainId ? "Captain selected" : "Select captain"}
+                {viceCaptainId ? ", Vice-captain selected" : ", Select vice-captain"}
+              </div>
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={!isTeamValid()}
+              className={`px-6 py-3 rounded-lg font-bold transition ${
+                isTeamValid() 
+                  ? 'bg-yellow-600 hover:bg-yellow-500' 
+                  : 'bg-gray-700 cursor-not-allowed'
+              }`}
+            >
+              {isTeamValid() ? 'SAVE TEAM' : 'SELECT 11 PLAYERS'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

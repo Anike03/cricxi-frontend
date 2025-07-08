@@ -20,11 +20,11 @@ function CricketBall() {
   useEffect(() => {
     const loader = new THREE.TextureLoader();
     loader.load(
-      '/public/cricket-ball-texture.jpg',
+      'cricket-ball-texture.jpg',
       (loadedTexture) => setTexture(loadedTexture),
       undefined,
       () => {
-        loader.load('/public/fallback-ball-texture.png', setTexture);
+        loader.load('fallback-ball-texture.png', setTexture);
       }
     );
   }, []);

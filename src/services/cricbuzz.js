@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const BASE_URL = "https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co";
-const API_KEY = "Ep4-fJnRh4dtxTMUGIEoofzyBprqNun3DeI0n7OjYqyOhSCE3H";
+const API_KEY = "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN";
 const HOST = "Cricbuzz-Official-Cricket-API.allthingsdev.co";
 
 // 🛠️ Headers factory
@@ -22,6 +22,12 @@ export const fetchNews = () =>
 export const fetchLiveMatches = () =>
   axios.get(`${BASE_URL}/matches/live`, {
     headers: makeHeaders("e0cb5c72-38e1-435e-8bf0-6b38fbe923b7"),
+  });
+
+// ⏳ Upcoming Matches
+export const fetchUpcomingMatches = () =>
+  axios.get(`${BASE_URL}/matches/upcoming`, {
+    headers: makeHeaders("1943a818-98e9-48ea-8d1c-1554e116ef44"),
   });
 
 // 🔍 Search Player
@@ -51,6 +57,12 @@ export const fetchPlayerBowlingStats = (playerId) =>
 // 🎽 Match Squads
 export const getMatchSquads = (matchId) =>
   axios.get(`${BASE_URL}/match/${matchId}/squads`, {
+    headers: makeHeaders("e1d1b32d-222a-430c-8069-b3a51f8997a3"),
+  });
+
+// 🏆 Series Info
+export const fetchSeriesInfo = (seriesId) =>
+  axios.get(`${BASE_URL}/series/${seriesId}`, {
     headers: makeHeaders("be37c2f5-3a12-44bd-8d8b-ba779eb89279"),
   });
 
@@ -76,12 +88,6 @@ export const fetchTeamPlayers = (teamId) =>
 export const fetchSeriesSquads = (seriesId) =>
   axios.get(`${BASE_URL}/series/${seriesId}/squads`, {
     headers: makeHeaders("038d223b-aca5-4096-8eb1-184dd0c09513"),
-  });
-
-// 📑 Series Squad Details
-export const fetchSeriesSquadDetails = (seriesId, squadId) =>
-  axios.get(`${BASE_URL}/series/${seriesId}/squads/${squadId}`, {
-    headers: makeHeaders("c4b3ccd2-0bb1-4d94-98c9-b31f389480be"),
   });
 
 // ✅ Upcoming Matches from your backend
