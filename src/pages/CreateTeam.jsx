@@ -19,153 +19,262 @@ const CreateTeam = () => {
 
   // Fetch squad data
   useEffect(() => {
-    const fetchSquad = async () => {
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    // In your fetchSquad function in CreateTeam.jsx:
+
+const fetchSquad = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    if (!matchData) {
+      throw new Error("Match data not available");
+    }
+
+    // First try to fetch match-specific squad (works for live matches)
+    try {
+      const response = await axios.get(
+        `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
+        {
+          headers: {
+            "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
+            "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+            "x-apihub-endpoint": "be37c2f5-3a12-44bd-8d8b-ba779eb89279"
+          }
+        }
+      );
+      
+      // Format the squad data
+      const formattedSquad = {
+        team1: {
+          team: matchData.team1,
+          players: {
+            "playing XI": response.data?.team1?.players?.["playing XI"]?.map(player => 
+              normalizePlayer(player, matchData.team1.teamId)
+            ) || [],
+            bench: response.data?.team1?.players?.bench?.map(player => 
+              normalizePlayer(player, matchData.team1.teamId)
+            ) || []
+          }
+        },
+        team2: {
+          team: matchData.team2,
+          players: {
+            "playing XI": response.data?.team2?.players?.["playing XI"]?.map(player => 
+              normalizePlayer(player, matchData.team2.teamId)
+            ) || [],
+            bench: response.data?.team2?.players?.bench?.map(player => 
+              normalizePlayer(player, matchData.team2.teamId)
+            ) || []
+          }
+        }
+      };
+      
+      setSquad(formattedSquad);
+      return;
+    } catch (_matchSquadError) {
+      console.log("Match squad not available, trying series squad");
+    }
+
+    // For upcoming matches, use the series squad approach
+    if (matchData?.seriesId) {
       try {
-        setLoading(true);
-        setError(null);
+        // 1. First get all squads for the series
+        const seriesSquadsResponse = await axios.get(
+          `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads`,
+          {
+            headers: {
+              "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
+              "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+              "x-apihub-endpoint": "038d223b-aca5-4096-8eb1-184dd0c09513"
+            }
+          }
+        );
+
+        // 2. Determine which squad type to use based on match format
+        const squadType = matchData.matchFormat.includes('T20') ? 'T20' : 
+                          matchData.matchFormat.includes('ODI') ? 'ODI' : 'TEST';
         
-        if (!matchData) {
-          throw new Error("Match data not available");
+        // 3. Find the relevant squad IDs for both teams
+        const team1Squad = seriesSquadsResponse.data?.squads?.find(
+          s => s.teamId === matchData.team1.teamId && s.squadType?.includes(squadType)
+        );
+        const team2Squad = seriesSquadsResponse.data?.squads?.find(
+          s => s.teamId === matchData.team2.teamId && s.squadType?.includes(squadType)
+        );
+
+        if (!team1Squad || !team2Squad) {
+          throw new Error("Could not find squads for both teams");
         }
 
-        // First try to fetch match-specific squad
-        try {
-          const response = await axios.get(
-            `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
+        // 4. Fetch both team squads in parallel
+        const [team1Response, team2Response] = await Promise.all([
+          axios.get(
+            `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team1Squad.squadId}`,
             {
               headers: {
                 "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
                 "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
-                "x-apihub-endpoint": "be37c2f5-3a12-44bd-8d8b-ba779eb89279"
+                "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
+              }
+            }
+          ),
+          axios.get(
+            `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team2Squad.squadId}`,
+            {
+              headers: {
+                "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
+                "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
+              }
+            }
+          )
+        ]);
+
+        // 5. Format the squad data
+        const formattedSquad = {
+          team1: {
+            team: matchData.team1,
+            players: {
+              "playing XI": team1Response.data?.players?.map(player => 
+                normalizePlayer(player, matchData.team1.teamId)
+              ) || [],
+              bench: [] // Empty bench for series squad
+            }
+          },
+          team2: {
+            team: matchData.team2,
+            players: {
+              "playing XI": team2Response.data?.players?.map(player => 
+                normalizePlayer(player, matchData.team2.teamId)
+              ) || [],
+              bench: [] // Empty bench for series squad
+            }
+          }
+        };
+
+        setSquad(formattedSquad);
+        return;
+      } catch (seriesError) {
+        console.error("Error fetching series squad:", seriesError);
+        
+        // Fallback to match info if available
+        try {
+          const matchInfoResponse = await axios.get(
+            `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}`,
+            {
+              headers: {
+                "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
+                "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
+                "x-apihub-endpoint": "ac951751-d311-4d23-8f18-353e75432353"
               }
             }
           );
+
+          const matchInfo = matchInfoResponse.data?.matchInfo;
+          if (!matchInfo) throw new Error("No match info found");
           
-          // Format the squad data to ensure consistent structure
           const formattedSquad = {
             team1: {
               team: matchData.team1,
               players: {
-                "playing XI": response.data.team1.players["playing XI"].map(player => 
-                  normalizePlayer(player, matchData.team1.teamId)
-                ),
-                bench: response.data.team1.players.bench.map(player => 
-                  normalizePlayer(player, matchData.team1.teamId)
-                )
+                "playing XI": matchInfo.team1?.playerDetails
+                  ?.filter(p => !p.substitute)
+                  ?.map(player => normalizePlayer(player, matchData.team1.teamId)) || [],
+                bench: matchInfo.team1?.playerDetails
+                  ?.filter(p => p.substitute)
+                  ?.map(player => normalizePlayer(player, matchData.team1.teamId)) || []
               }
             },
             team2: {
               team: matchData.team2,
               players: {
-                "playing XI": response.data.team2.players["playing XI"].map(player => 
-                  normalizePlayer(player, matchData.team2.teamId)
-                ),
-                bench: response.data.team2.players.bench.map(player => 
-                  normalizePlayer(player, matchData.team2.teamId)
-                )
+                "playing XI": matchInfo.team2?.playerDetails
+                  ?.filter(p => !p.substitute)
+                  ?.map(player => normalizePlayer(player, matchData.team2.teamId)) || [],
+                bench: matchInfo.team2?.playerDetails
+                  ?.filter(p => p.substitute)
+                  ?.map(player => normalizePlayer(player, matchData.team2.teamId)) || []
               }
             }
           };
-          
+
           setSquad(formattedSquad);
           return;
-        } catch  {
-          console.log("Match squad not available, trying series squad");
+        } catch (matchInfoError) {
+          console.error("Error fetching match info:", matchInfoError);
+          throw new Error("Could not fetch squad from match info");
         }
-
-        // If match squad not available, try to fetch series squads
-        if (matchData?.seriesId) {
-          try {
-            // First get all squads for the series
-            const seriesSquadsResponse = await axios.get(
-              `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads`,
-              {
-                headers: {
-                  "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
-                  "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
-                  "x-apihub-endpoint": "038d223b-aca5-4096-8eb1-184dd0c09513"
-                }
-              }
-            );
-
-            // Determine which squad type to use based on match format
-            const squadType = matchData.matchFormat.includes('T20') ? 'T20' : 
-                              matchData.matchFormat.includes('ODI') ? 'ODI' : 'TEST';
-            
-            // Find the relevant squad IDs for both teams
-            const team1Squad = seriesSquadsResponse.data.squads.find(
-              s => s.teamId === matchData.team1.teamId && s.squadType.includes(squadType)
-            );
-            const team2Squad = seriesSquadsResponse.data.squads.find(
-              s => s.teamId === matchData.team2.teamId && s.squadType.includes(squadType)
-            );
-
-            if (team1Squad && team2Squad) {
-              // Fetch both team squads in parallel
-              const [team1Response, team2Response] = await Promise.all([
-                axios.get(
-                  `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team1Squad.squadId}`,
-                  {
-                    headers: {
-                      "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
-                      "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
-                      "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
-                    }
-                  }
-                ),
-                axios.get(
-                  `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team2Squad.squadId}`,
-                  {
-                    headers: {
-                      "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
-                      "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
-                      "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
-                    }
-                  }
-                )
-              ]);
-
-              // Format the squad data to match our expected structure
-              const formattedSquad = {
-                team1: {
-                  team: matchData.team1,
-                  players: {
-                    "playing XI": team1Response.data.players.map(player => 
-                      normalizePlayer(player, matchData.team1.teamId)
-                    ),
-                    bench: [] // Empty bench for series squad
-                  }
-                },
-                team2: {
-                  team: matchData.team2,
-                  players: {
-                    "playing XI": team2Response.data.players.map(player => 
-                      normalizePlayer(player, matchData.team2.teamId)
-                    ),
-                    bench: [] // Empty bench for series squad
-                  }
-                }
-              };
-
-              setSquad(formattedSquad);
-              return;
-            }
-          } catch (seriesError) {
-            console.error("Error fetching series squad:", seriesError);
-          }
-        }
-
-        // If no squad available at all
-        throw new Error("Squad information not yet available for this match");
-        
-      } catch (err) {
-        console.error("Error fetching squad:", err);
-        setError(err.message || "Failed to load squad data. Please try again later.");
-        setSquad(null);
-      } finally {
-        setLoading(false);
       }
-    };
+    }
+
+    // If no squad available at all
+    throw new Error("Squad information not yet available for this match");
+    
+  } catch (err) {
+    console.error("Error fetching squad:", err);
+    setError(err.message || "Failed to load squad data. Please try again later.");
+    setSquad(null);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     fetchSquad();
   }, [matchId, matchData]);

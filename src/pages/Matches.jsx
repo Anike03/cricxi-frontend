@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-// import axios from "axios";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Stars, Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -23,6 +22,22 @@ function ThunderstormRivalry() {
       positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
     }
     rainRef.current.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  }, []);
+
+  // Handle WebGL context loss
+  useEffect(() => {
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      console.log('WebGL context lost');
+    };
+
+    const canvas = rainRef.current?.parent?.canvas;
+    if (canvas) {
+      canvas.addEventListener('webglcontextlost', handleContextLost, false);
+      return () => {
+        canvas.removeEventListener('webglcontextlost', handleContextLost, false);
+      };
+    }
   }, []);
 
   // Animate rain and lightning
@@ -97,7 +112,13 @@ function VSAnimation() {
       }, 800);
     }, 7000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
   }, []);
 
   return (
@@ -218,31 +239,33 @@ const Matches = () => {
         const liveResponse = await fetchLiveMatches();
         const liveMatches = [];
         
-        liveResponse.data.typeMatches.forEach(typeMatch => {
-          typeMatch.seriesMatches.forEach(seriesMatch => {
-            if (seriesMatch.seriesAdWrapper?.matches) {
+        liveResponse?.data?.typeMatches?.forEach(typeMatch => {
+          typeMatch?.seriesMatches?.forEach(seriesMatch => {
+            if (seriesMatch?.seriesAdWrapper?.matches) {
               seriesMatch.seriesAdWrapper.matches.forEach(match => {
-                liveMatches.push({
-                  matchId: match.matchInfo.matchId,
-                  cricbuzzId: match.matchInfo.matchId,
-                  matchDesc: match.matchInfo.matchDesc,
-                  team1: match.matchInfo.team1.teamName,
-                  team1Short: match.matchInfo.team1.teamSName,
-                  team1Id: match.matchInfo.team1.teamId,
-                  team2: match.matchInfo.team2.teamName,
-                  team2Short: match.matchInfo.team2.teamSName,
-                  team2Id: match.matchInfo.team2.teamId,
-                  startDate: match.matchInfo.startDate,
-                  venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
-                  matchFormat: match.matchInfo.matchFormat,
-                  seriesName: match.matchInfo.seriesName,
-                  seriesId: match.matchInfo.seriesId,
-                  source: 'cricbuzz',
-                  status: match.matchInfo.status,
-                  score: match.matchInfo.status.includes('won') ? 
-                    `${match.matchInfo.team1.teamSName} ${match.matchInfo.team1.score} vs ${match.matchInfo.team2.teamSName} ${match.matchInfo.team2.score}` : 
-                    match.matchInfo.status
-                });
+                if (match?.matchInfo) {
+                  liveMatches.push({
+                    matchId: match.matchInfo.matchId,
+                    cricbuzzId: match.matchInfo.matchId,
+                    matchDesc: match.matchInfo.matchDesc,
+                    team1: match.matchInfo.team1?.teamName || "Team 1",
+                    team1Short: match.matchInfo.team1?.teamSName || "T1",
+                    team1Id: match.matchInfo.team1?.teamId,
+                    team2: match.matchInfo.team2?.teamName || "Team 2",
+                    team2Short: match.matchInfo.team2?.teamSName || "T2",
+                    team2Id: match.matchInfo.team2?.teamId,
+                    startDate: match.matchInfo.startDate,
+                    venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
+                    matchFormat: match.matchInfo.matchFormat,
+                    seriesName: match.matchInfo.seriesName,
+                    seriesId: match.matchInfo.seriesId,
+                    source: 'cricbuzz',
+                    status: match.matchInfo.status,
+                    score: match.matchInfo.status?.includes('won') ? 
+                      `${match.matchInfo.team1?.teamSName || "T1"} ${match.matchInfo.team1?.score || ""} vs ${match.matchInfo.team2?.teamSName || "T2"} ${match.matchInfo.team2?.score || ""}` : 
+                      match.matchInfo.status
+                  });
+                }
               });
             }
           });
@@ -256,50 +279,52 @@ const Matches = () => {
 
         // Process Cricbuzz matches
         const cricbuzzMatches = [];
-        cricbuzzResponse.data.typeMatches.forEach(typeMatch => {
-          typeMatch.seriesMatches.forEach(seriesMatch => {
-            if (seriesMatch.seriesAdWrapper?.matches) {
+        cricbuzzResponse?.data?.typeMatches?.forEach(typeMatch => {
+          typeMatch?.seriesMatches?.forEach(seriesMatch => {
+            if (seriesMatch?.seriesAdWrapper?.matches) {
               seriesMatch.seriesAdWrapper.matches.forEach(match => {
-                cricbuzzMatches.push({
-                  matchId: match.matchInfo.matchId,
-                  cricbuzzId: match.matchInfo.matchId,
-                  matchDesc: match.matchInfo.matchDesc,
-                  team1: match.matchInfo.team1.teamName,
-                  team1Short: match.matchInfo.team1.teamSName,
-                  team1Id: match.matchInfo.team1.teamId,
-                  team2: match.matchInfo.team2.teamName,
-                  team2Short: match.matchInfo.team2.teamSName,
-                  team2Id: match.matchInfo.team2.teamId,
-                  startDate: match.matchInfo.startDate,
-                  venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
-                  matchFormat: match.matchInfo.matchFormat,
-                  seriesName: match.matchInfo.seriesName,
-                  seriesId: match.matchInfo.seriesId,
-                  source: 'cricbuzz'
-                });
+                if (match?.matchInfo) {
+                  cricbuzzMatches.push({
+                    matchId: match.matchInfo.matchId,
+                    cricbuzzId: match.matchInfo.matchId,
+                    matchDesc: match.matchInfo.matchDesc,
+                    team1: match.matchInfo.team1?.teamName || "Team 1",
+                    team1Short: match.matchInfo.team1?.teamSName || "T1",
+                    team1Id: match.matchInfo.team1?.teamId,
+                    team2: match.matchInfo.team2?.teamName || "Team 2",
+                    team2Short: match.matchInfo.team2?.teamSName || "T2",
+                    team2Id: match.matchInfo.team2?.teamId,
+                    startDate: match.matchInfo.startDate,
+                    venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
+                    matchFormat: match.matchInfo.matchFormat,
+                    seriesName: match.matchInfo.seriesName,
+                    seriesId: match.matchInfo.seriesId,
+                    source: 'cricbuzz'
+                  });
+                }
               });
             }
           });
         });
 
-        // Process backend matches
-        const backendMatches = backendResponse.data.data.map(match => ({
-          matchId: match.matchId,
-          cricbuzzId: match.cricbuzzId,
-          matchDesc: match.matchDesc,
-          team1: match.team1,
-          team1Short: match.team1Short,
-          team1Id: match.team1Id,
-          team2: match.team2,
-          team2Short: match.team2Short,
-          team2Id: match.team2Id,
-          startDate: match.startDate,
-          venue: match.venue,
-          matchFormat: match.matchFormat,
-          seriesName: match.seriesName || "Custom Match",
-          seriesId: match.seriesId,
+        // Process backend matches with proper error handling
+        const backendMatches = backendResponse?.data?.data?.map(match => ({
+          matchId: match?.matchId,
+          cricbuzzId: match?.cricbuzzId,
+          matchDesc: match?.matchDesc || "Match",
+          team1: match?.team1 || "Team 1",
+          team1Short: match?.team1Short || "T1",
+          team1Id: match?.team1Id,
+          team2: match?.team2 || "Team 2",
+          team2Short: match?.team2Short || "T2",
+          team2Id: match?.team2Id,
+          startDate: match?.startDate,
+          venue: match?.venue || "Venue not specified",
+          matchFormat: match?.matchFormat || "T20",
+          seriesName: match?.seriesName || "Custom Match",
+          seriesId: match?.seriesId,
           source: 'backend'
-        }));
+        })) || [];
 
         // Combine and deduplicate matches (prioritizing backend matches if IDs conflict)
         const combinedMatches = [...backendMatches];
@@ -325,54 +350,54 @@ const Matches = () => {
         // Fallback if one of the requests fails
         try {
           const liveResponse = await fetchLiveMatches();
-          const liveMatches = liveResponse.data.typeMatches.flatMap(typeMatch => 
-            typeMatch.seriesMatches.flatMap(seriesMatch => 
-              seriesMatch.seriesAdWrapper?.matches?.map(match => ({
-                matchId: match.matchInfo.matchId,
-                cricbuzzId: match.matchInfo.matchId,
-                matchDesc: match.matchInfo.matchDesc,
-                team1: match.matchInfo.team1.teamName,
-                team1Short: match.matchInfo.team1.teamSName,
-                team1Id: match.matchInfo.team1.teamId,
-                team2: match.matchInfo.team2.teamName,
-                team2Short: match.matchInfo.team2.teamSName,
-                team2Id: match.matchInfo.team2.teamId,
-                startDate: match.matchInfo.startDate,
-                venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
-                matchFormat: match.matchInfo.matchFormat,
-                seriesName: match.matchInfo.seriesName,
-                seriesId: match.matchInfo.seriesId,
+          const liveMatches = liveResponse?.data?.typeMatches?.flatMap(typeMatch => 
+            typeMatch?.seriesMatches?.flatMap(seriesMatch => 
+              seriesMatch?.seriesAdWrapper?.matches?.map(match => ({
+                matchId: match?.matchInfo?.matchId,
+                cricbuzzId: match?.matchInfo?.matchId,
+                matchDesc: match?.matchInfo?.matchDesc || "Match",
+                team1: match?.matchInfo?.team1?.teamName || "Team 1",
+                team1Short: match?.matchInfo?.team1?.teamSName || "T1",
+                team1Id: match?.matchInfo?.team1?.teamId,
+                team2: match?.matchInfo?.team2?.teamName || "Team 2",
+                team2Short: match?.matchInfo?.team2?.teamSName || "T2",
+                team2Id: match?.matchInfo?.team2?.teamId,
+                startDate: match?.matchInfo?.startDate,
+                venue: match?.matchInfo?.venueInfo?.ground || "Venue not specified",
+                matchFormat: match?.matchInfo?.matchFormat || "T20",
+                seriesName: match?.matchInfo?.seriesName,
+                seriesId: match?.matchInfo?.seriesId,
                 source: 'cricbuzz',
-                status: match.matchInfo.status,
-                score: match.matchInfo.status.includes('won') ? 
-                  `${match.matchInfo.team1.teamSName} ${match.matchInfo.team1.score} vs ${match.matchInfo.team2.teamSName} ${match.matchInfo.team2.score}` : 
-                  match.matchInfo.status
+                status: match?.matchInfo?.status,
+                score: match?.matchInfo?.status?.includes('won') ? 
+                  `${match?.matchInfo?.team1?.teamSName || "T1"} ${match?.matchInfo?.team1?.score || ""} vs ${match?.matchInfo?.team2?.teamSName || "T2"} ${match?.matchInfo?.team2?.score || ""}` : 
+                  match?.matchInfo?.status
               })) || []
-            )
-          );
+            ) || []
+          ) || [];
 
           const upcomingResponse = await fetchUpcomingMatches();
-          const upcomingMatches = upcomingResponse.data.typeMatches.flatMap(typeMatch => 
-            typeMatch.seriesMatches.flatMap(seriesMatch => 
-              seriesMatch.seriesAdWrapper?.matches?.map(match => ({
-                matchId: match.matchInfo.matchId,
-                cricbuzzId: match.matchInfo.matchId,
-                matchDesc: match.matchInfo.matchDesc,
-                team1: match.matchInfo.team1.teamName,
-                team1Short: match.matchInfo.team1.teamSName,
-                team1Id: match.matchInfo.team1.teamId,
-                team2: match.matchInfo.team2.teamName,
-                team2Short: match.matchInfo.team2.teamSName,
-                team2Id: match.matchInfo.team2.teamId,
-                startDate: match.matchInfo.startDate,
-                venue: match.matchInfo.venueInfo?.ground || "Venue not specified",
-                matchFormat: match.matchInfo.matchFormat,
-                seriesName: match.matchInfo.seriesName,
-                seriesId: match.matchInfo.seriesId,
+          const upcomingMatches = upcomingResponse?.data?.typeMatches?.flatMap(typeMatch => 
+            typeMatch?.seriesMatches?.flatMap(seriesMatch => 
+              seriesMatch?.seriesAdWrapper?.matches?.map(match => ({
+                matchId: match?.matchInfo?.matchId,
+                cricbuzzId: match?.matchInfo?.matchId,
+                matchDesc: match?.matchInfo?.matchDesc || "Match",
+                team1: match?.matchInfo?.team1?.teamName || "Team 1",
+                team1Short: match?.matchInfo?.team1?.teamSName || "T1",
+                team1Id: match?.matchInfo?.team1?.teamId,
+                team2: match?.matchInfo?.team2?.teamName || "Team 2",
+                team2Short: match?.matchInfo?.team2?.teamSName || "T2",
+                team2Id: match?.matchInfo?.team2?.teamId,
+                startDate: match?.matchInfo?.startDate,
+                venue: match?.matchInfo?.venueInfo?.ground || "Venue not specified",
+                matchFormat: match?.matchInfo?.matchFormat || "T20",
+                seriesName: match?.matchInfo?.seriesName,
+                seriesId: match?.matchInfo?.seriesId,
                 source: 'cricbuzz'
               })) || []
-            )
-          );
+            ) || []
+          ) || [];
 
           setMatches({
             live: liveMatches.slice(0, 10),
@@ -380,6 +405,10 @@ const Matches = () => {
           });
         } catch (fallbackError) {
           console.error("Fallback fetch failed:", fallbackError);
+          setMatches({
+            live: [],
+            upcoming: []
+          });
         }
       } finally {
         setLoading({
@@ -397,9 +426,9 @@ const Matches = () => {
 
     // Setup thunder interval
     thunderIntervalRef.current = setInterval(() => {
-      if (Math.random() > 0.7 && (matches.live.length > 0 || matches.upcoming.length > 0)) {
+      if (Math.random() > 0.7 && (matches?.live?.length > 0 || matches?.upcoming?.length > 0)) {
         setThunder(true);
-        audioRef.current.play().catch(e => console.log("Audio play error:", e));
+        audioRef.current?.play()?.catch(e => console.log("Audio play error:", e));
         setTimeout(() => setThunder(false), 300);
       }
     }, 10000);
@@ -414,7 +443,7 @@ const Matches = () => {
         clearInterval(thunderIntervalRef.current);
       }
     };
-  },);
+  }, [matches]); // Add matches as dependency
 
   // Team Badge with full team name
   const TeamBadge = ({ team, color, position }) => (
@@ -433,7 +462,7 @@ const Matches = () => {
       }}
     >
       <div className="text-center px-1">
-        {team.split(' ').map((word, i) => (
+        {team?.split(' ').map((word, i) => (
           <div key={i}>{word}</div>
         ))}
       </div>
@@ -442,6 +471,7 @@ const Matches = () => {
 
   // Format match status for live matches
   const formatMatchStatus = (status) => {
+    if (!status) return "Match in progress";
     if (status.includes('won')) {
       return status;
     }
@@ -533,7 +563,7 @@ const Matches = () => {
             <div className="flex justify-center items-center h-64">
               <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-          ) : matches[activeTab].length === 0 ? (
+          ) : matches[activeTab]?.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -552,9 +582,9 @@ const Matches = () => {
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {matches[activeTab].map((match, idx) => (
+              {matches[activeTab]?.map((match, idx) => (
                 <motion.div
-                  key={`${match.source}-${match.matchId}`}
+                  key={`${match?.source}-${match?.matchId}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1 }}
@@ -565,11 +595,11 @@ const Matches = () => {
                 >
                   {/* Source indicator */}
                   <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold ${
-                    match.source === 'cricbuzz' 
+                    match?.source === 'cricbuzz' 
                       ? 'bg-blue-500 text-white' 
                       : 'bg-yellow-500 text-black'
                   }`}>
-                    {match.source === 'cricbuzz' ? 'Official' : 'Custom'}
+                    {match?.source === 'cricbuzz' ? 'Official' : 'Custom'}
                   </div>
                   
                   {/* Rivalry team badges */}
@@ -578,8 +608,8 @@ const Matches = () => {
                       ? 'from-red-900/30 to-red-900/40' 
                       : 'from-blue-900/30 to-red-900/30'
                   }`}>
-                    <TeamBadge team={match.team1} color="#3b82f6" position="left-6 top-1/2 transform -translate-y-1/2" />
-                    <TeamBadge team={match.team2} color="#ef4444" position="right-6 top-1/2 transform -translate-y-1/2" />
+                    <TeamBadge team={match?.team1} color="#3b82f6" position="left-6 top-1/2 transform -translate-y-1/2" />
+                    <TeamBadge team={match?.team2} color="#ef4444" position="right-6 top-1/2 transform -translate-y-1/2" />
                     
                     {/* Aggressive VS Animation */}
                     <VSAnimation />
@@ -588,18 +618,18 @@ const Matches = () => {
                   {/* Match details with team names */}
                   <div className="mb-4">
                     <h3 className="text-xl font-bold text-center text-yellow-400 mb-3">
-                      {match.matchDesc}
+                      {match?.matchDesc || "Cricket Match"}
                     </h3>
-                    <p className="text-sm text-center text-gray-400 mb-2">{match.seriesName}</p>
+                    <p className="text-sm text-center text-gray-400 mb-2">{match?.seriesName || "Series"}</p>
                     
                     {/* Live match status */}
-                    {activeTab === 'live' && match.score && (
+                    {activeTab === 'live' && match?.score && (
                       <div className="text-center mb-4">
                         <p className="text-lg font-bold text-green-400">
-                          {formatMatchStatus(match.status)}
+                          {formatMatchStatus(match?.status)}
                         </p>
                         <p className="text-sm text-gray-300 mt-1">
-                          {match.score}
+                          {match?.score}
                         </p>
                       </div>
                     )}
@@ -607,11 +637,11 @@ const Matches = () => {
                     {/* Team names display */}
                     <div className="flex justify-between items-center mb-4 px-4">
                       <span className="font-medium text-blue-300 text-sm text-center">
-                        {match.team1}
+                        {match?.team1}
                       </span>
                       <span className="mx-2 text-white font-bold">vs</span>
                       <span className="font-medium text-red-300 text-sm text-center">
-                        {match.team2}
+                        {match?.team2}
                       </span>
                     </div>
                     
@@ -620,14 +650,14 @@ const Matches = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                       </svg>
-                      {match.venue}
+                      {match?.venue}
                     </div>
                     {activeTab === 'upcoming' && (
                       <div className="flex items-center justify-center text-sm text-gray-300">
                         <svg className="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        {new Date(parseInt(match.startDate)).toLocaleString("en-IN", {
+                        {new Date(parseInt(match?.startDate)).toLocaleString("en-IN", {
                           day: 'numeric',
                           month: 'short',
                           hour: '2-digit',
@@ -640,7 +670,7 @@ const Matches = () => {
                   {/* Action buttons */}
                   <div className="flex gap-3 mt-6">
                     <Link
-                      to={`/contests/${match.matchId}`}
+                      to={`/contests/${match?.matchId}`}
                       className={`flex-1 px-4 py-3 bg-gradient-to-r ${
                         activeTab === 'live' 
                           ? 'from-red-600 to-red-700 hover:from-red-500 hover:to-red-600' 
@@ -654,22 +684,22 @@ const Matches = () => {
                       {activeTab === 'live' ? 'JOIN LIVE' : 'JOIN CONTEST'}
                     </Link>
                     <Link
-                      to={`/create-team/${match.cricbuzzId}`}
+                      to={`/create-team/${match?.cricbuzzId}`}
                       state={{ 
                         matchData: {
-                          matchId: match.cricbuzzId,
+                          matchId: match?.cricbuzzId,
                           team1: { 
-                            teamId: match.team1Id, 
-                            teamName: match.team1,
-                            teamSName: match.team1Short
+                            teamId: match?.team1Id, 
+                            teamName: match?.team1,
+                            teamSName: match?.team1Short
                           },
                           team2: { 
-                            teamId: match.team2Id, 
-                            teamName: match.team2,
-                            teamSName: match.team2Short
+                            teamId: match?.team2Id, 
+                            teamName: match?.team2,
+                            teamSName: match?.team2Short
                           },
-                          seriesId: match.seriesId,
-                          matchFormat: match.matchFormat
+                          seriesId: match?.seriesId,
+                          matchFormat: match?.matchFormat
                         }
                       }}
                       className="flex-1 px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold text-sm rounded-lg text-center transition-all border border-gray-600"
