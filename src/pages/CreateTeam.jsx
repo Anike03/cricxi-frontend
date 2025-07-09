@@ -16,33 +16,64 @@ const CreateTeam = () => {
   const [teamName, setTeamName] = useState("");
   const [captainId, setCaptainId] = useState(null);
   const [viceCaptainId, setViceCaptainId] = useState(null);
-  const [seriesSquads, setSeriesSquads] = useState(null);
 
   // Fetch squad data
   useEffect(() => {
     const fetchSquad = async () => {
       try {
         setLoading(true);
+        setError(null);
         
+        if (!matchData) {
+          throw new Error("Match data not available");
+        }
+
         // First try to fetch match-specific squad
         try {
           const response = await axios.get(
             `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/match/${matchId}/squads`,
             {
               headers: {
-                "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
                 "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
                 "x-apihub-endpoint": "be37c2f5-3a12-44bd-8d8b-ba779eb89279"
               }
             }
           );
-          setSquad(response.data);
+          
+          // Format the squad data to ensure consistent structure
+          const formattedSquad = {
+            team1: {
+              team: matchData.team1,
+              players: {
+                "playing XI": response.data.team1.players["playing XI"].map(player => 
+                  normalizePlayer(player, matchData.team1.teamId)
+                ),
+                bench: response.data.team1.players.bench.map(player => 
+                  normalizePlayer(player, matchData.team1.teamId)
+                )
+              }
+            },
+            team2: {
+              team: matchData.team2,
+              players: {
+                "playing XI": response.data.team2.players["playing XI"].map(player => 
+                  normalizePlayer(player, matchData.team2.teamId)
+                ),
+                bench: response.data.team2.players.bench.map(player => 
+                  normalizePlayer(player, matchData.team2.teamId)
+                )
+              }
+            }
+          };
+          
+          setSquad(formattedSquad);
           return;
-        } catch (matchSquadError) {
+        } catch  {
           console.log("Match squad not available, trying series squad");
         }
 
-        // If match squad not available, fetch series squads first
+        // If match squad not available, try to fetch series squads
         if (matchData?.seriesId) {
           try {
             // First get all squads for the series
@@ -50,16 +81,16 @@ const CreateTeam = () => {
               `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads`,
               {
                 headers: {
-                  "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                  "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
                   "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
                   "x-apihub-endpoint": "038d223b-aca5-4096-8eb1-184dd0c09513"
                 }
               }
             );
-            setSeriesSquads(seriesSquadsResponse.data.squads);
 
             // Determine which squad type to use based on match format
-            const squadType = matchData.matchFormat.includes('T20') ? 'T20' : 'ODI';
+            const squadType = matchData.matchFormat.includes('T20') ? 'T20' : 
+                              matchData.matchFormat.includes('ODI') ? 'ODI' : 'TEST';
             
             // Find the relevant squad IDs for both teams
             const team1Squad = seriesSquadsResponse.data.squads.find(
@@ -76,7 +107,7 @@ const CreateTeam = () => {
                   `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team1Squad.squadId}`,
                   {
                     headers: {
-                      "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                      "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
                       "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
                       "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
                     }
@@ -86,7 +117,7 @@ const CreateTeam = () => {
                   `https://Cricbuzz-Official-Cricket-API.proxy-production.allthingsdev.co/series/${matchData.seriesId}/squads/${team2Squad.squadId}`,
                   {
                     headers: {
-                      "x-apihub-key": "R1d5pcXPQ31B0euDD7GQzHWzOy0n54JUcfGtwQSouAgmmfB-aN",
+                      "x-apihub-key": "T7-xiJYNyjX581-Zl-84gr4Z8hXo6H8Z7Ci9LeYd6E0fYJKqar",
                       "x-apihub-host": "Cricbuzz-Official-Cricket-API.allthingsdev.co",
                       "x-apihub-endpoint": "c4b3ccd2-0bb1-4d94-98c9-b31f389480be"
                     }
@@ -99,14 +130,18 @@ const CreateTeam = () => {
                 team1: {
                   team: matchData.team1,
                   players: {
-                    "playing XI": team1Response.data.players,
+                    "playing XI": team1Response.data.players.map(player => 
+                      normalizePlayer(player, matchData.team1.teamId)
+                    ),
                     bench: [] // Empty bench for series squad
                   }
                 },
                 team2: {
                   team: matchData.team2,
                   players: {
-                    "playing XI": team2Response.data.players,
+                    "playing XI": team2Response.data.players.map(player => 
+                      normalizePlayer(player, matchData.team2.teamId)
+                    ),
                     bench: [] // Empty bench for series squad
                   }
                 }
@@ -121,12 +156,12 @@ const CreateTeam = () => {
         }
 
         // If no squad available at all
-        setError("Squad information not yet available for this match");
-        setSquad(null);
+        throw new Error("Squad information not yet available for this match");
         
       } catch (err) {
         console.error("Error fetching squad:", err);
-        setError("Failed to load squad data. Please try again later.");
+        setError(err.message || "Failed to load squad data. Please try again later.");
+        setSquad(null);
       } finally {
         setLoading(false);
       }
@@ -137,14 +172,20 @@ const CreateTeam = () => {
 
   // Helper function to normalize player data from different API responses
   const normalizePlayer = (player, teamId) => {
+    // Handle different API response structures
+    const playerId = player.id || player.playerId;
+    const fullName = player.fullName || player.name;
+    const name = player.name || player.fullName;
+    const role = player.role || player.type || "Player";
+    
     return {
-      id: player.id || player.playerId,
-      name: player.name || player.fullName,
-      fullName: player.fullName || player.name,
-      role: player.role || player.type || "Player",
+      id: playerId,
+      name: name,
+      fullName: fullName,
+      role: role,
       teamId: teamId,
       captain: player.captain || false,
-      keeper: player.keeper || false,
+      keeper: player.keeper || role.includes('WK') || false,
       battingStyle: player.battingStyle,
       bowlingStyle: player.bowlingStyle
     };
@@ -178,6 +219,16 @@ const CreateTeam = () => {
            hasValidRoles;
   };
 
+  // Count players by role
+  const countPlayersByRole = (role) => {
+    return selectedPlayers.filter(p => p.role.includes(role)).length;
+  };
+
+  // Count players by team
+  const countPlayersByTeam = (teamId) => {
+    return selectedPlayers.filter(p => p.teamId === teamId).length;
+  };
+
   // Submit team
   const handleSubmit = () => {
     if (!isTeamValid()) return;
@@ -200,16 +251,6 @@ const CreateTeam = () => {
     console.log("Team submitted:", teamData);
     alert("Team created successfully!");
     navigate(`/contests/${matchId}`);
-  };
-
-  // Count players by role
-  const countPlayersByRole = (role) => {
-    return selectedPlayers.filter(p => p.role.includes(role)).length;
-  };
-
-  // Count players by team
-  const countPlayersByTeam = (teamId) => {
-    return selectedPlayers.filter(p => p.teamId === teamId).length;
   };
 
   if (loading) {
@@ -396,36 +437,59 @@ const CreateTeam = () => {
               </span>
             </div>
 
-            <h3 className="font-medium mb-2 text-yellow-400">Squad</h3>
+            <h3 className="font-medium mb-2 text-yellow-400">Playing XI</h3>
             <div className="grid grid-cols-1 gap-2">
-              {squad.team1.players["playing XI"].map((player) => {
-                const normalizedPlayer = normalizePlayer(player, squad.team1.team.teamId);
-                return (
-                  <motion.div
-                    key={normalizedPlayer.id}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => togglePlayerSelection(normalizedPlayer)}
-                    className={`p-2 rounded-lg cursor-pointer flex items-center ${
-                      selectedPlayers.some(p => p.id === normalizedPlayer.id) 
-                        ? 'bg-green-900/50' 
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{normalizedPlayer.name}</div>
-                      <div className="text-xs text-gray-300">{normalizedPlayer.role}</div>
-                    </div>
-                    {normalizedPlayer.captain && (
-                      <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
-                    )}
-                    {normalizedPlayer.keeper && (
-                      <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
-                    )}
-                  </motion.div>
-                );
-              })}
+              {squad.team1.players["playing XI"].map((player) => (
+                <motion.div
+                  key={player.id}
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => togglePlayerSelection(player)}
+                  className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                    selectedPlayers.some(p => p.id === player.id) 
+                      ? 'bg-green-900/50' 
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{player.name}</div>
+                    <div className="text-xs text-gray-300">{player.role}</div>
+                  </div>
+                  {player.captain && (
+                    <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
+                  )}
+                  {player.keeper && (
+                    <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
+                  )}
+                </motion.div>
+              ))}
             </div>
+
+            {squad.team1.players.bench.length > 0 && (
+              <>
+                <h3 className="font-medium mb-2 mt-4 text-yellow-400">Bench</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {squad.team1.players.bench.map((player) => (
+                    <motion.div
+                      key={player.id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => togglePlayerSelection(player)}
+                      className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                        selectedPlayers.some(p => p.id === player.id) 
+                          ? 'bg-green-900/50' 
+                          : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{player.name}</div>
+                        <div className="text-xs text-gray-300">{player.role}</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Team 2 */}
@@ -439,36 +503,59 @@ const CreateTeam = () => {
               </span>
             </div>
 
-            <h3 className="font-medium mb-2 text-yellow-400">Squad</h3>
+            <h3 className="font-medium mb-2 text-yellow-400">Playing XI</h3>
             <div className="grid grid-cols-1 gap-2">
-              {squad.team2.players["playing XI"].map((player) => {
-                const normalizedPlayer = normalizePlayer(player, squad.team2.team.teamId);
-                return (
-                  <motion.div
-                    key={normalizedPlayer.id}
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => togglePlayerSelection(normalizedPlayer)}
-                    className={`p-2 rounded-lg cursor-pointer flex items-center ${
-                      selectedPlayers.some(p => p.id === normalizedPlayer.id) 
-                        ? 'bg-green-900/50' 
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{normalizedPlayer.name}</div>
-                      <div className="text-xs text-gray-300">{normalizedPlayer.role}</div>
-                    </div>
-                    {normalizedPlayer.captain && (
-                      <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
-                    )}
-                    {normalizedPlayer.keeper && (
-                      <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
-                    )}
-                  </motion.div>
-                );
-              })}
+              {squad.team2.players["playing XI"].map((player) => (
+                <motion.div
+                  key={player.id}
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => togglePlayerSelection(player)}
+                  className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                    selectedPlayers.some(p => p.id === player.id) 
+                      ? 'bg-green-900/50' 
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{player.name}</div>
+                    <div className="text-xs text-gray-300">{player.role}</div>
+                  </div>
+                  {player.captain && (
+                    <span className="ml-2 text-xs bg-yellow-600 px-1 rounded">CAP</span>
+                  )}
+                  {player.keeper && (
+                    <span className="ml-2 text-xs bg-blue-600 px-1 rounded">WK</span>
+                  )}
+                </motion.div>
+              ))}
             </div>
+
+            {squad.team2.players.bench.length > 0 && (
+              <>
+                <h3 className="font-medium mb-2 mt-4 text-yellow-400">Bench</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {squad.team2.players.bench.map((player) => (
+                    <motion.div
+                      key={player.id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => togglePlayerSelection(player)}
+                      className={`p-2 rounded-lg cursor-pointer flex items-center ${
+                        selectedPlayers.some(p => p.id === player.id) 
+                          ? 'bg-green-900/50' 
+                          : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-600 mr-3 flex-shrink-0"></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{player.name}</div>
+                        <div className="text-xs text-gray-300">{player.role}</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

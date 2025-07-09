@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+// import axios from "axios";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Stars, Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -414,7 +414,7 @@ const Matches = () => {
         clearInterval(thunderIntervalRef.current);
       }
     };
-  }, []);
+  },);
 
   // Team Badge with full team name
   const TeamBadge = ({ team, color, position }) => (
