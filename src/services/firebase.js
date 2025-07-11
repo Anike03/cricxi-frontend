@@ -5,7 +5,9 @@ import {
   signInAnonymously,
   RecaptchaVerifier,
 } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
+// ✅ Your Firebase config
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -16,13 +18,14 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+// ✅ Initialize Firebase and Firestore
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
-const anonymousLogin = () => signInAnonymously(auth);
 
-// For phone auth
+// ✅ reCAPTCHA (for phone auth)
+const anonymousLogin = () => signInAnonymously(auth);
 const setupRecaptcha = (elementId) => {
   window.recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
     size: "invisible",
@@ -30,8 +33,10 @@ const setupRecaptcha = (elementId) => {
   });
 };
 
+// ✅ Export
 export {
   auth,
+  db,
   googleProvider,
   anonymousLogin,
   setupRecaptcha,

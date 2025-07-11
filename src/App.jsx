@@ -16,6 +16,7 @@ import Leaderboard from "./pages/Leaderboard";
 import LoginRegister from "./pages/LoginRegister";
 import EmailVerificationSent from "./pages/EmailVerificationSent";
 import LoginSuccess from "./pages/LoginSuccess";
+import MyTeams from "./pages/MyTeams";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -77,6 +78,9 @@ function AppRoutes() {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/contests/:matchId" element={<ProtectedRoute><Contests /></ProtectedRoute>} />
           <Route path="/create-team/:matchId" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
+          <Route path="/my-teams/:matchId" element={<ProtectedRoute><MyTeams /></ProtectedRoute>} />
+
+
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />

@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import { motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
+import { addDoc, collection, updateDoc, doc } from "firebase/firestore"; 
+import { db } from "../services/firebase";
 
 const CreateTeam = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const matchData = location.state?.matchData;
-  
+  const teamToEdit = location.state?.teamToEdit;
+  const matchData = location.state?.matchData; 
+  const { user } = useAuth();
   const [squad, setSquad] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -338,29 +342,62 @@ const fetchSquad = async () => {
     return selectedPlayers.filter(p => p.teamId === teamId).length;
   };
 
+
+
+
+
+
+
+
+
+
   // Submit team
-  const handleSubmit = () => {
-    if (!isTeamValid()) return;
-    
+const handleSubmit = async () => {
+    if (!isTeamValid() || !user) return;
+    setLoading(true);
+
     const teamData = {
+      uid: user.uid,
+      email: user.email,
       matchId,
       teamName,
       players: selectedPlayers.map(player => ({
         id: player.id,
         name: player.name,
         role: player.role,
+        teamId: player.teamId,
         isCaptain: player.id === captainId,
-        isViceCaptain: player.id === viceCaptainId,
-        teamId: player.teamId
+        isViceCaptain: player.id === viceCaptainId
       })),
-      createdAt: new Date().toISOString()
+      matchMeta: matchData,
+      updatedAt: new Date()
     };
 
-    // In a real app, you would save this to your backend
-    console.log("Team submitted:", teamData);
-    alert("Team created successfully!");
-    navigate(`/contests/${matchId}`);
+    // In the handleSubmit function, replace the success handling with:
+try {
+  if (teamToEdit?.id) {
+    await updateDoc(doc(db, "fantasyTeams", teamToEdit.id), teamData);
+    alert("Team updated successfully!");
+  } else {
+    await addDoc(collection(db, "fantasyTeams"), {
+      ...teamData,
+      createdAt: new Date()
+    });
+  }
+  
+  // Navigate with state to trigger success message
+  navigate("/my-teams", { 
+    state: { teamCreated: true } 
+  });
+} catch (err) {
+  console.error("Error saving team:", err);
+  alert("Failed to save team. Please try again.");
+} finally {
+  setLoading(false);
+}
   };
+
+
 
   if (loading) {
     return (
