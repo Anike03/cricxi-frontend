@@ -24,30 +24,7 @@ const CreateTeam = () => {
   // Fetch squad data
   useEffect(() => {
    
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-    // In your fetchSquad function in CreateTeam.jsx:
+ // In your fetchSquad function in CreateTeam.jsx:
 
 const fetchSquad = async () => {
   try {
@@ -247,39 +224,6 @@ const fetchSquad = async () => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     fetchSquad();
   }, [matchId, matchData]);
 
@@ -342,16 +286,7 @@ const fetchSquad = async () => {
     return selectedPlayers.filter(p => p.teamId === teamId).length;
   };
 
-
-
-
-
-
-
-
-
-
-  // Submit team
+ // Submit team
 const handleSubmit = async () => {
     if (!isTeamValid() || !user) return;
     setLoading(true);

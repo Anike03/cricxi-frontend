@@ -5,6 +5,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars, Text, Environment } from "@react-three/drei";
 import * as THREE from "three";
 import { motion, AnimatePresence } from "framer-motion";
+import { startSignalRConnection, subscribeToContestUpdates } from '../services/signalR';
+import { useAuth } from "../context/AuthContext";
 
 // Floating Cricket Ball Component
 function FloatingCricketBall() {
@@ -186,22 +188,65 @@ const Contests = () => {
   const [contests, setContests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredContest, setHoveredContest] = useState(null);
+  const [userHasTeams, setUserHasTeams] = useState({});
   const canvasRef = useRef();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAllContests = async () => {
+  try {
+    const res = await axios.get("https://cricxi.onrender.com/api/contests/all");
+    const contestsData = res.data || [];
+    
+    // Preserve both IDs
+    const standardizedContests = contestsData.map(contest => ({
+  ...contest,
+  cricbuzzMatchId: contest.matchId,   // This is the Cricbuzz ID (as sent by backend)
+  mongoMatchId: contest.mongoMatchId || "", 
+}));
+
+    
+    setContests(standardizedContests);
+    if (user) checkUserTeams(standardizedContests);
+  } catch (err) {
+    console.error("Error loading contests", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+    const checkUserTeams = async (contestsList) => {
       try {
-        const res = await axios.get("https://cricxi.onrender.com/api/contests/all");
-        setContests(res.data || []);
+        const matchIds = [...new Set(contestsList.map(c => c.matchId))];
+        const teamsResponse = await axios.get(`/api/users/${user.uid}/teams`, {
+          params: { matchIds }
+        });
+        
+        const hasTeamsMap = {};
+        matchIds.forEach(matchId => {
+          hasTeamsMap[matchId] = teamsResponse.data.some(
+            team => String(team.matchId) === String(matchId)
+          );
+        });
+        
+        setUserHasTeams(hasTeamsMap);
       } catch (err) {
-        console.error("Error loading contests", err);
-      } finally {
-        setLoading(false);
+        console.error("Error checking user teams", err);
       }
     };
 
     fetchAllContests();
-  }, []);
+
+    // Set up SignalR for real-time updates
+    const connection = startSignalRConnection();
+    subscribeToContestUpdates(() => {
+      fetchAllContests();
+    });
+
+    return () => {
+      connection?.stop();
+    };
+  }, [user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -213,6 +258,12 @@ const Contests = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Check if user can join a specific contest
+  const canJoinContest = (contest) => {
+    if (!user) return false;
+    return userHasTeams[contest.matchId] || false;
+  };
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative bg-gradient-to-br from-gray-900 to-gray-800">
@@ -333,17 +384,25 @@ const Contests = () => {
                   </AnimatePresence>
 
                   {/* Contest header */}
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-yellow-400 mb-1">{contest.name}</h2>
-                      <p className="text-sm text-gray-400">
-                        {contest.teamA} vs {contest.teamB}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 bg-green-600/30 text-xs font-bold rounded-full">
-                      ₹{contest.totalPrize}
-                    </span>
-                  </div>
+<div className="flex justify-between items-start mb-4">
+  <div>
+    <h2 className="text-xl font-bold text-yellow-400 mb-1">{contest.name}</h2>
+    <p className="text-sm text-gray-400">
+      {contest.teamA} vs {contest.teamB}
+    </p>
+    <p className="text-xs text-yellow-300 font-mono mt-1">
+  Cricbuzz ID: {contest.cricbuzzMatchId}
+</p>
+<p className="text-xs text-blue-300 font-mono">
+  Internal ID: {contest.matchId}
+</p>
+
+  </div>
+  <span className="px-3 py-1 bg-green-600/30 text-xs font-bold rounded-full">
+    ₹{contest.totalPrize}
+  </span>
+</div>
+
 
                   {/* Progress bar */}
                   <div className="mb-4">
@@ -382,16 +441,38 @@ const Contests = () => {
                     </div>
                   </div>
 
-                  {/* Join button */}
-                  <Link
-                    to={`/join/${contest.id}`}
-                    className="w-full mt-4 inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-white font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-yellow-500/30"
-                  >
-                    Join Now
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </Link>
+                  {/* Join/Create Team button */}
+                  {user ? (
+                    canJoinContest(contest) ? (
+                      <Link
+                        to={`/join/${contest.id}`}
+                        className="w-full mt-4 inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-white font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-yellow-500/30"
+                      >
+                        Join Now
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <Link
+  to={`/my-teams/${contest.matchId}`}
+  className="w-full mt-4 inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/30"
+>
+  Select Team
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+  </svg>
+</Link>
+
+                    )
+                  ) : (
+                    <Link
+                      to="/auth"
+                      className="w-full mt-4 inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-400 hover:to-gray-500 text-white font-bold rounded-lg transition-all"
+                    >
+                      Login to Join
+                    </Link>
+                  )}
 
                   {/* Floating trophy on hover */}
                   <AnimatePresence>

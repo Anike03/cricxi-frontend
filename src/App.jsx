@@ -24,6 +24,8 @@ import Footer from "./components/Footer";
 import AuthProvider from "./context/AuthProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import JoinContest from "./pages/JoinContest"; // Make sure the path is correct
+
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -79,6 +81,7 @@ function AppRoutes() {
           <Route path="/contests/:matchId" element={<ProtectedRoute><Contests /></ProtectedRoute>} />
           <Route path="/create-team/:matchId" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
           <Route path="/my-teams/:matchId" element={<ProtectedRoute><MyTeams /></ProtectedRoute>} />
+          <Route path="/join/:contestId" element={<ProtectedRoute><JoinContest /></ProtectedRoute>} />
 
 
 

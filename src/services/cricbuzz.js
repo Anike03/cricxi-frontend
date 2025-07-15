@@ -94,6 +94,12 @@ export const fetchSeriesSquads = (seriesId) =>
 export const fetchBackendUpcomingMatches = () =>
   axios.get("https://cricxi.onrender.com/api/match/upcoming");
 
+// 🏏 Series Squad Players
+export const fetchSeriesSquadPlayers = (seriesId, squadId) =>
+  axios.get(`${BASE_URL}/series/${seriesId}/squads/${squadId}`, {
+    headers: makeHeaders("c4b3ccd2-0bb1-4d94-98c9-b31f389480be"),
+  });
+
 // 🧠 Resolve internal -> cricbuzz match ID
 export const getCricbuzzMatchId = (matchId) =>
   axios.get(`https://cricxi.onrender.com/api/match/${matchId}/cricbuzz-id`);

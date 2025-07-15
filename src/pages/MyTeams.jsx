@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 
 // SVG Icons
 const TrophyIcon = () => (
@@ -44,35 +45,73 @@ const MyTeams = () => {
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
   const [expandedTeam, setExpandedTeam] = useState(null);
+  const [contests, setContests] = useState([]);
+
   const navigate = useNavigate();
   const location = useLocation();
+const fetchContests = async () => {
+  try {
+    const res = await axios.get("https://cricxi.onrender.com/api/contests/all");
+    const formatted = res.data.map(c => ({
+      ...c,
+      matchId: String(c.cricbuzzMatchId || c.matchId)
+
+    }));
+    setContests(formatted);
+  } catch (err) {
+    console.error("Error loading contests:", err);
+  }
+};
+
+fetchContests();
 
   useEffect(() => {
-    if (!user) return;
+  if (!user) return;
 
-    const q = query(
-      collection(db, "fantasyTeams"),
-      where("uid", "==", user.uid)
-    );
+  const q = query(
+    collection(db, "fantasyTeams"),
+    where("uid", "==", user.uid)
+  );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const result = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const result = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date()
+    }));
+    setTeams(result.sort((a, b) => b.createdAt - a.createdAt));
+    setLoading(false);
+
+    if (location.state?.teamCreated) {
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      navigate(".", { replace: true });
+    }
+  });
+
+  // ✅ Move fetchContests here
+  const fetchContests = async () => {
+    try {
+      const res = await axios.get("https://cricxi.onrender.com/api/contests/all");
+      const formatted = res.data.map(c => ({
+        ...c,
+        matchId: String(c.cricbuzzMatchId || c.matchId)
       }));
-      setTeams(result.sort((a, b) => b.createdAt - a.createdAt));
-      setLoading(false);
-      
-      if (location.state?.teamCreated) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
-        navigate(".", { replace: true });
-      }
-    });
+      setContests(formatted);
+    } catch (err) {
+      console.error("Error loading contests:", err);
+    }
+  };
 
-    return () => unsubscribe();
-  }, [user, navigate, location.state]);
+  fetchContests(); // ✅ Call it here now that user is loaded
+
+  return () => unsubscribe();
+}, [user, navigate, location.state]);
+
+
+
+
+
 
   const handleDelete = async (id) => {
     const confirm = window.confirm("Are you sure you want to delete this team?");
@@ -92,6 +131,17 @@ const MyTeams = () => {
       alert("Match metadata not available for this team.");
       return;
     }
+
+
+
+
+
+
+
+
+
+
+
 
     navigate(`/create-team/${matchMeta.matchId}`, {
       state: {
@@ -259,32 +309,60 @@ const MyTeams = () => {
                       </div>
                     </div>
 
+              
                     {/* Match info */}
-                    <div className="bg-gray-700/50 p-3 rounded-lg mb-4">
-                      <h3 className="font-medium text-yellow-400 mb-2">Match Info</h3>
-                      <p className="text-sm">
-                        {team.matchMeta?.matchDescription || 'No match description available'}
-                      </p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        {team.matchMeta?.venue || 'Venue not specified'}
-                      </p>
-                    </div>
+<div className="bg-gray-700/50 p-3 rounded-lg mb-4">
+  <h3 className="font-medium text-yellow-400 mb-2">Match Info</h3>
+  <p className="text-sm">
+    {team.matchMeta?.matchDescription || 'No match description available'}
+  </p>
+  <p className="text-sm text-gray-400 mt-1">
+    {team.matchMeta?.venue || 'Venue not specified'}
+  </p>
+  <p className="text-sm text-yellow-300 mt-1">
+    🔗 Cricbuzz ID: <span className="font-mono">{team.matchId || "N/A"}</span>
+  </p>
+</div>
+
 
                     {/* Action buttons */}
-                    <div className="flex justify-between gap-3 pt-3 border-t border-gray-700/50">
-                      <button
-                        onClick={() => handleEdit(team)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600/80 hover:bg-blue-500/80 text-white px-3 py-2 rounded-lg transition"
-                      >
-                        <EditIcon /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(team.id)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-500/80 text-white px-3 py-2 rounded-lg transition"
-                      >
-                        <TrashIcon /> Delete
-                      </button>
-                    </div>
+                    <div className="flex flex-col md:flex-row justify-between gap-3 pt-3 border-t border-gray-700/50">
+  <button
+    onClick={() => handleEdit(team)}
+    className="flex-1 flex items-center justify-center gap-2 bg-blue-600/80 hover:bg-blue-500/80 text-white px-3 py-2 rounded-lg transition"
+  >
+    <EditIcon/>Edit
+  </button>
+
+  <button
+    onClick={() => handleDelete(team.id)}
+    className="flex-1 flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-500/80 text-white px-3 py-2 rounded-lg transition"
+  >
+    <TrashIcon/>Delete
+  </button>
+
+  {
+  (() => {
+    const contest = contests.find(
+  c =>
+    String(c.matchId) === String(team.matchId || team.matchMeta?.matchId) ||
+    String(c.cricbuzzMatchId) === String(team.matchId || team.matchMeta?.matchId)
+);
+
+    return contest ? (
+      <button
+        onClick={() => navigate(`/join/${contest.id}`)}
+        className="flex-1 flex items-center justify-center gap-2 bg-green-600/80 hover:bg-green-500/80 text-white px-3 py-2 rounded-lg transition"
+      >
+        🏆 Join Contest
+      </button>
+    ) : null;
+  })()
+}
+
+</div>
+
+                    
                   </motion.div>
                 )}
               </motion.div>

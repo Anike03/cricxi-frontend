@@ -1,171 +1,371 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { getAuth } from 'firebase/auth';
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { db } from "../services/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import api from "../services/api";
+import { motion, AnimatePresence } from "framer-motion";
 
 const JoinContest = () => {
   const { contestId } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const auth = getAuth();
-  const user = auth.currentUser;
-
-  // State
+  const location = useLocation();
   const [contest, setContest] = useState(null);
   const [teams, setTeams] = useState([]);
-  const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Fetch user balance with error handling
+  const fetchBalance = useCallback(async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const res = await api.get(`/users/${user.uid}/balance`);
+
+      setBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Error fetching balance:", err);
+      // Set default balance if API fails
+      setBalance(0);
+    }
+  }, [user]);
 
   // Fetch contest details
-  useEffect(() => {
-    const fetchContest = async () => {
-      try {
-        setLoading(true);
-        const res = await axios.get(`https://cricxi.onrender.com/api/contests/${contestId}`);
-        setContest(res.data);
-      } catch (err) {
-        setError('Failed to load contest details');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchContest = useCallback(async () => {
+    try {
+      const res = await api.get(`/contests/${contestId}`);
+      
+      if (!res.data) {
+        throw new Error("Contest data not found");
       }
-    };
 
-    fetchContest();
+      return {
+        ...res.data,
+        matchId: String(res.data.matchId),
+        cricbuzzMatchId: String(res.data.cricbuzzMatchId || res.data.matchId)
+      };
+    } catch (err) {
+      console.error("Fetch contest error:", err);
+      throw new Error("Failed to load contest details. Please try again.");
+    }
   }, [contestId]);
 
-  // Fetch user's teams for this match
-  useEffect(() => {
-    if (!contest?.matchId) return;
+  // Fetch user's teams for this match with proper error handling
+  const fetchTeams = useCallback(async (matchId) => {
+    if (!user?.uid) return [];
+    
+    try {
+      const stringMatchId = String(matchId);
+      const q = query(
+        collection(db, "fantasyTeams"),
+        where("uid", "==", user.uid),
+        where("matchId", "==", stringMatchId)
+      );
 
-    const fetchTeams = async () => {
-      try {
-        const res = await axios.get(
-          `https://cricxi.onrender.com/api/team/match/${contest.matchId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${await user.getIdToken()}`
-            }
-          }
-        );
-        setTeams(res.data);
-      } catch (err) {
-        console.error('Failed to fetch teams', err);
-      }
-    };
+      const snapshot = await getDocs(q);
+      const teamList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        matchId: String(doc.data().matchId)
+      }));
 
-    fetchTeams();
-  }, [contest?.matchId, user]);
-
-  // Handle contest joining
-  const handleJoin = async () => {
-    if (!selectedTeamId) {
-      setError('Please select a team');
-      return;
+      return teamList;
+    } catch (err) {
+      console.error("Team fetch error:", err);
+      // Return empty array instead of throwing error
+      return [];
     }
+  }, [user?.uid]);
 
+  // Main data fetching function
+  const fetchContestAndTeams = useCallback(async () => {
     try {
       setLoading(true);
-      await axios.post(
-        'https://cricxi.onrender.com/api/contest-entry/join',
-        {
-          contestId,
-          teamId: selectedTeamId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${await user.getIdToken()}`
-          }
-        }
-      );
-      navigate('/my-contests');
+      setError("");
+
+      // Fetch in parallel
+      const [contestData,] = await Promise.all([
+        fetchContest(),
+        fetchBalance()
+      ]);
+
+      const teamsData = await fetchTeams(contestData.matchId);
+
+      setContest(contestData);
+      setTeams(teamsData);
+
+      // Auto-select team if available
+      if (location.state?.newTeamId) {
+        setSelectedTeamId(location.state.newTeamId);
+      } else if (location.state?.teamId) {
+        setSelectedTeamId(location.state.teamId);
+      } else if (teamsData.length === 1) {
+        setSelectedTeamId(teamsData[0].id);
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to join contest');
-      console.error(err);
+      console.error("Error:", err);
+      setError(err.message || "Failed to load data. Please try again.");
     } finally {
       setLoading(false);
     }
+  }, [fetchContest, fetchTeams, fetchBalance, location.state]);
+
+  // Handle joining contest
+  const handleJoin = async () => {
+    if (!selectedTeamId || !contest || !user) {
+      return setError("Please select a valid team.");
+    }
+
+    const selectedTeam = teams.find(t => t.id === selectedTeamId);
+    if (!selectedTeam) {
+      return setError("Selected team not found. Please refresh the page.");
+    }
+
+    if (contest.entryFee > 0 && balance < contest.entryFee) {
+      return setError("Insufficient balance to join this contest");
+    }
+
+    try {
+      setProcessing(true);
+      setError("");
+      
+      const response = await api.post("/contests/join", {
+        contestId: contest.id,
+        userId: user.uid,
+        teamId: selectedTeamId,
+        entryFee: contest.entryFee
+      });
+
+      if (response.data.success) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate(`/my-teams/${contest.matchId}`, {
+            state: { contestJoined: true }
+          });
+        }, 1500);
+      } else {
+        throw new Error(response.data.message || "Join failed");
+      }
+    } catch (err) {
+      console.error("Join error:", err);
+      setError(err.response?.data?.message || err.message || "Failed to join contest");
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Join Contest</h1>
-      
-      {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">{error}</div>}
+  // Initial data load
+  useEffect(() => {
+    if (user) {
+      fetchContestAndTeams();
+    } else {
+      setError("Please login to join contests");
+      setLoading(false);
+    }
+  }, [user, fetchContestAndTeams]);
 
-      {contest && (
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-2">{contest.name}</h2>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-gray-600">Prize Pool</p>
-              <p className="font-medium">₹{contest.totalPrize}</p>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="text-center text-white">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p>Loading contest data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="text-center p-6 bg-gray-800/80 rounded-lg max-w-md border border-gray-700 text-white">
+          <h2 className="text-xl font-bold mb-2 text-yellow-400">Error</h2>
+          <p className="mb-4">{error}</p>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded transition"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => navigate(-1)}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded transition"
+            >
+              Go Back
+            </button>
+            {contest?.matchId && (
+              <Link
+                to={`/create-team/${contest.matchId}`}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition"
+              >
+                Create Team
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 md:p-6">
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 z-50"
+          >
+            <div className="bg-green-600/90 text-white px-6 py-4 rounded-lg shadow-lg flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>Successfully joined contest!</span>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="max-w-md mx-auto bg-gray-800/70 rounded-xl p-6 border border-gray-700 shadow-lg backdrop-blur-sm">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-yellow-400 mb-2">Join Contest</h1>
+          <div className="h-1 bg-gradient-to-r from-yellow-500 to-transparent w-full mb-4"></div>
+          
+          <div className="space-y-3">
             <div>
-              <p className="text-sm text-gray-600">Entry Fee</p>
-              <p className="font-medium">₹{contest.entryFee}</p>
+              <h2 className="text-lg font-semibold">{contest?.name}</h2>
+              <p className="text-gray-300">
+                {contest?.teamA} vs {contest?.teamB}
+              </p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Spots</p>
-              <p className="font-medium">{contest.joined}/{contest.maxParticipants}</p>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-700/50 p-3 rounded-lg">
+                <p className="text-gray-400 text-sm">Prize Pool</p>
+                <p className="text-lg font-bold">₹{contest?.totalPrize}</p>
+              </div>
+              <div className="bg-gray-700/50 p-3 rounded-lg">
+                <p className="text-gray-400 text-sm">Entry Fee</p>
+                <p className="text-lg font-bold">₹{contest?.entryFee}</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-700/30 p-3 rounded-lg">
+              <p className="text-gray-400 text-sm">Your Balance</p>
+              <p className={`text-lg font-bold ${balance >= contest?.entryFee ? "text-green-400" : "text-red-400"}`}>
+                ₹{balance.toFixed(2)}
+              </p>
+            </div>
+            
+            <div className="bg-gray-700/30 p-3 rounded-lg">
+              <p className="text-gray-400 text-sm">Spots</p>
+              <div className="flex justify-between items-center">
+                <p>{contest?.joined}/{contest?.maxParticipants} joined</p>
+                <div className="w-1/2 bg-gray-600 rounded-full h-2">
+                  <div 
+                    className="bg-yellow-500 h-2 rounded-full" 
+                    style={{ 
+                      width: `${Math.min(100, (contest?.joined/contest?.maxParticipants)*100)}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Select Your Team</h2>
-        
-        {teams.length > 0 ? (
-          <div className="space-y-3">
-            {teams.map(team => (
-              <div
-                key={team._id}
-                onClick={() => setSelectedTeamId(team._id)}
-                className={`p-4 border rounded cursor-pointer ${
-                  selectedTeamId === team._id
-                    ? 'bg-blue-50 border-blue-500'
-                    : 'hover:bg-gray-50'
-                }`}
+        <div className="mb-6">
+          <label className="block text-gray-300 mb-2 font-medium">Select Your Team</label>
+          
+          {teams.length > 0 ? (
+            <>
+              <select
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white mb-3 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               >
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium">{team.teamName}</h3>
-                  <span className="text-sm text-gray-600">
-                    {team.players.length}/11 players
-                  </span>
+                <option value="">-- Select Team --</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.teamName} ({team.players?.length} players)
+                  </option>
+                ))}
+              </select>
+              
+              {selectedTeamId && (
+                <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-600">
+                  <h3 className="font-medium mb-2">
+                    {teams.find(t => t.id === selectedTeamId)?.teamName}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-400">Captain</p>
+                      <p>
+                        {teams.find(t => t.id === selectedTeamId)?.players?.find(p => p.isCaptain)?.name || "Not set"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Vice Captain</p>
+                      <p>
+                        {teams.find(t => t.id === selectedTeamId)?.players?.find(p => p.isViceCaptain)?.name || "Not set"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 text-sm">
-                  <p>
-                    Captain: {team.players.find(p => p.isCaptain)?.name || 'Not set'}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">You haven't created any teams for this match yet</p>
-            <button
-              onClick={() => navigate(`/create-team/${contest?.matchId}`)}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Create Team Now
-            </button>
-          </div>
-        )}
+              )}
+            </>
+          ) : (
+            <div className="text-center p-6 bg-gray-800/50 rounded-lg border border-dashed border-gray-600">
+              <p className="text-gray-400 mb-4">You don't have any teams for this match</p>
+              <Link
+                to={`/create-team/${contest?.matchId}`}
+                className="inline-block px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded font-medium transition"
+              >
+                Create Team
+              </Link>
+            </div>
+          )}
+        </div>
 
         {teams.length > 0 && (
-          <button
-            onClick={handleJoin}
-            disabled={loading || !selectedTeamId}
-            className={`mt-6 w-full py-2 rounded font-medium ${
-              selectedTeamId
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {loading ? 'Joining...' : 'Join Contest'}
-          </button>
+          <div className="space-y-4">
+            {error && (
+              <div className="text-red-400 text-sm p-2 bg-red-900/30 rounded">
+                {error}
+              </div>
+            )}
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleJoin}
+              disabled={!selectedTeamId || processing || balance < contest?.entryFee}
+              className={`w-full py-3 rounded-lg font-bold transition ${
+                selectedTeamId && balance >= contest?.entryFee
+                  ? "bg-yellow-600 hover:bg-yellow-500"
+                  : "bg-gray-700 cursor-not-allowed"
+              }`}
+            >
+              {processing ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                `Pay ₹${contest?.entryFee} & Join`
+              )}
+            </motion.button>
+          </div>
         )}
       </div>
     </div>
