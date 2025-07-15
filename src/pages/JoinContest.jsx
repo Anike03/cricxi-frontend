@@ -22,18 +22,38 @@ const JoinContest = () => {
 
   // Fetch user balance with error handling
   const fetchBalance = useCallback(async () => {
-    if (!user?.uid) return;
+  if (!user?.uid) return;
+  
+  try {
+    const res = await api.get(`/users/${user.uid}/balance`);
     
+    if (res.data && res.data.balance !== undefined) {
+      setBalance(res.data.balance);
+    } else {
+      // Fallback to fetching by email if UID lookup fails
+      const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
+      if (emailRes.data) {
+        setBalance(emailRes.data.walletBalance || 0);
+      } else {
+        setBalance(0);
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching balance:", err);
+    // Try fallback to email if UID fails
     try {
-      const res = await api.get(`/users/${user.uid}/balance`);
-
-      setBalance(res.data.balance || 0);
-    } catch (err) {
-      console.error("Error fetching balance:", err);
-      // Set default balance if API fails
+      const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
+      if (emailRes.data) {
+        setBalance(emailRes.data.walletBalance || 0);
+      } else {
+        setBalance(0);
+      }
+    } catch (emailErr) {
+      console.error("Fallback email fetch failed:", emailErr);
       setBalance(0);
     }
-  }, [user]);
+  }
+}, [user]);
 
   // Fetch contest details
   const fetchContest = useCallback(async () => {
