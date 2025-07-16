@@ -3,6 +3,17 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
+      colors: { // Add these color extensions
+        gray: {
+          800: '#1f2937',
+          900: '#111827',
+        },
+        yellow: {
+          400: '#fbbf24',
+          500: '#f59e0b',
+          600: '#d97706',
+        }
+      },
       animation: {
         "fade-in": "fadeIn 0.5s ease-out forwards",
         "fade-in-up": "fadeInUp 0.6s ease-out forwards",

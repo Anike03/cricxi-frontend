@@ -100,6 +100,12 @@ export const fetchSeriesSquadPlayers = (seriesId, squadId) =>
     headers: makeHeaders("c4b3ccd2-0bb1-4d94-98c9-b31f389480be"),
   });
 
+// 🏏 Match Scorecard
+export const fetchMatchScorecard = (matchId) =>
+  axios.get(`${BASE_URL}/match/${matchId}/scorecard`, {
+    headers: makeHeaders("5f260335-c228-4005-9eec-318200ca48d6"),
+  });
+  
 // 🧠 Resolve internal -> cricbuzz match ID
 export const getCricbuzzMatchId = (matchId) =>
   axios.get(`https://cricxi.onrender.com/api/match/${matchId}/cricbuzz-id`);

@@ -11,12 +11,14 @@ import {
   fetchPlayerBattingStats,
   fetchPlayerBowlingStats
 } from "../services/cricbuzz.js";
+import ScorecardModal from "../components/ScorecardModal";
+import { fetchMatchScorecard } from "../services/cricbuzz";
 
 // Cricket Ball Component
 function CricketBall() {
   const ballRef = useRef();
   const [texture, setTexture] = useState(null);
-
+  
   useEffect(() => {
     const loader = new THREE.TextureLoader();
     loader.load(
@@ -48,6 +50,7 @@ function CricketBall() {
     </mesh>
   );
 }
+
 
 // Stadium Environment Component
 function StadiumEnvironment() {
@@ -425,7 +428,17 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState("news");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const canvasRef = useRef();
-
+const [scorecardData, setScorecardData] = useState(null);
+const [showScorecard, setShowScorecard] = useState(false);
+const handleViewScorecard = async (matchId) => {
+    try {
+      const res = await fetchMatchScorecard(matchId);
+      setScorecardData(res.data);
+      setShowScorecard(true);
+    } catch (err) {
+      console.error("Failed to fetch scorecard", err);
+    }
+  };
   useEffect(() => {
     const loadNews = async () => {
       try {
@@ -807,6 +820,226 @@ const Home = () => {
             )}
           </AnimatePresence>
 
+          {/* Loading state - show before data is ready */}
+{showScorecard && !scorecardData && (
+  <div className="fixed inset-0 z-[100] flex justify-center items-center">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-md z-[101]" />
+    <div className="relative z-[102] p-8 bg-gray-900 rounded-xl shadow-2xl border-2 border-green-500/50">
+      <div className="flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white font-medium">Loading scorecard...</p>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Scorecard with smooth animations */}
+{showScorecard && scorecardData && (
+  <>
+    <style dangerouslySetInnerHTML={{__html: `
+      body { overflow: hidden; }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .scorecard-animate {
+        animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+    `}} />
+    
+    <div className="fixed inset-0 z-[100] flex justify-center items-start p-4 overflow-y-auto">
+      {/* Blurred backdrop with fade-in */}
+      <div 
+        className="fixed inset-0 bg-black/0 backdrop-blur-none transition-all duration-300 ease-out"
+        style={{
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(8px)',
+        }}
+        onClick={() => setShowScorecard(false)}
+      />
+      
+      {/* Scorecard container with smooth animation */}
+      <div className="relative z-[102] scorecard-animate bg-gray-900 rounded-xl shadow-2xl w-full max-w-6xl my-8 overflow-y-auto border-2 border-green-500/50 transform origin-center"
+           style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+        
+        {/* Close button with hover effect */}
+        <button
+          onClick={() => setShowScorecard(false)}
+          className="absolute top-4 right-4 text-white bg-red-600 hover:bg-red-700 rounded-full p-2 z-[110] transition-all duration-200 hover:scale-110 active:scale-95"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+        
+        {/* Header with sticky effect */}
+        <div className="sticky top-0 z-[105] bg-gradient-to-r from-green-900 to-blue-900 p-4 border-b border-gray-700">
+          <Motion.h2 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-2xl font-bold text-white flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Match Scorecard
+          </Motion.h2>
+          <Motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-gray-300 text-sm mt-1"
+          >
+            {scorecardData?.matchInfo?.seriesName || 'Match Details'}
+          </Motion.p>
+        </div>
+        
+        {/* Content with staggered animations */}
+        <div className="p-6">
+          {scorecardData?.scoreCard?.map((innings, idx) => (
+            <Motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + idx * 0.1 }}
+              className="mb-8 bg-gray-800/50 rounded-lg p-4 border border-gray-700"
+            >
+              {/* Innings header */}
+              <div className="flex justify-between items-center mb-4">
+                <Motion.h3 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-xl font-semibold text-green-400"
+                >
+                  {innings.batTeamDetails.batTeamName} - {innings.scoreDetails.runs}/{innings.scoreDetails.wickets} 
+                  <span className="text-gray-400 text-sm font-normal ml-2">
+                    ({innings.scoreDetails.overs} overs)
+                  </span>
+                </Motion.h3>
+                <Motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring' }}
+                  className="px-3 py-1 bg-blue-600/30 text-xs rounded-full"
+                >
+                  Inning {innings.inningsId}
+                </Motion.span>
+              </div>
+
+              {/* Batting table with row animations */}
+              <div className="mb-6">
+                <Motion.h4 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-lg font-medium text-yellow-300 mb-3 flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Batting
+                </Motion.h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead className="bg-gray-700/50">
+                      <tr>
+                        {['Batsman', 'R', 'B', '4s', '6s', 'SR', 'Dismissal'].map((header, i) => (
+                          <Motion.th
+                            key={header}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + i * 0.05 }}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                          >
+                            {header}
+                          </Motion.th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {innings.batTeamDetails.batsmenData.map((bat, i) => (
+                        <Motion.tr
+                          key={i}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.6 + i * 0.03 }}
+                          className={i % 2 === 0 ? 'bg-gray-900/30' : 'bg-gray-900/10'}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{bat.batName}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bat.runs}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bat.balls}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bat.fours}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bat.sixes}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bat.strikeRate}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">{bat.outDesc || 'not out'}</td>
+                        </Motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Bowling table with row animations */}
+              <div>
+                <Motion.h4 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  className="text-lg font-medium text-blue-300 mb-3 flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  Bowling
+                </Motion.h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead className="bg-gray-700/50">
+                      <tr>
+                        {['Bowler', 'O', 'M', 'R', 'W', 'Econ'].map((header, i) => (
+                          <Motion.th
+                            key={header}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7 + i * 0.05 }}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                          >
+                            {header}
+                          </Motion.th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {innings.bowlTeamDetails.bowlersData.map((bowl, i) => (
+                        <Motion.tr
+                          key={i}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.8 + i * 0.03 }}
+                          className={i % 2 === 0 ? 'bg-gray-900/30' : 'bg-gray-900/10'}
+                        >
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-white">{bowl.bowlName}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bowl.overs}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bowl.maidens}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bowl.runs}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bowl.wickets}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-300">{bowl.economy}</td>
+                        </Motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
           {/* Live Matches Section */}
           <div className="bg-gradient-to-r from-green-900/50 to-blue-900/50 backdrop-blur-sm p-6 rounded-2xl border border-gray-700 shadow-lg mb-12">
             <div className="flex justify-between items-center mb-6">
@@ -854,6 +1087,15 @@ const Home = () => {
                           style={{ width: `${getMatchProgress(match)}%` }}
                         ></div>
                       </div>
+                      <button
+  onClick={() => handleViewScorecard(match.matchInfo.matchId)}
+  className="mt-3 inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg hover:shadow-blue-500/30 w-full"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+  </svg>
+  View Full Scorecard
+</button>
                     </div>
                   </div>
                 ))

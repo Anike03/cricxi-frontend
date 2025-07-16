@@ -24,8 +24,9 @@ import Footer from "./components/Footer";
 import AuthProvider from "./context/AuthProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
-import JoinContest from "./pages/JoinContest"; // Make sure the path is correct
-
+import JoinContest from "./pages/JoinContest"; 
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -82,7 +83,8 @@ function AppRoutes() {
           <Route path="/create-team/:matchId" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
           <Route path="/my-teams/:matchId" element={<ProtectedRoute><MyTeams /></ProtectedRoute>} />
           <Route path="/join/:contestId" element={<ProtectedRoute><JoinContest /></ProtectedRoute>} />
-
+<Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
+<Route path="/terms-and-conditions" element={<ProtectedRoute><TermsAndConditions /></ProtectedRoute>} />
 
 
           {/* Fallback */}
