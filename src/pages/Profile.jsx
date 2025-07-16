@@ -13,6 +13,8 @@ const Profile = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -37,6 +39,19 @@ const Profile = () => {
 
     fetchUserData();
   }, [user]);
+
+  const handleAddFunds = () => {
+    setShowPaymentModal(true);
+  };
+
+  const handlePayment = (amount) => {
+    setSelectedAmount(amount);
+  };
+
+  const handleCloseModal = () => {
+    setShowPaymentModal(false);
+    setSelectedAmount(null);
+  };
 
   // Floating Cricket Ball Component
   function FloatingCricketBall() {
@@ -216,6 +231,70 @@ const Profile = () => {
         ))}
       </div>
 
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 max-w-md w-full border border-gray-700 shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-yellow-400">Add Funds to Wallet</h3>
+              <button 
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {!selectedAmount ? (
+              <>
+                <p className="text-gray-300 mb-4">Select amount to add:</p>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {[25, 100, 150, 250, 500, 1000].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => handlePayment(amount)}
+                      className="py-3 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-center"
+                    >
+                      <span className="font-bold text-yellow-400">₹{amount}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <div className="mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-yellow-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h4 className="text-xl font-bold mb-2">Payment Instructions</h4>
+                  <p className="text-gray-300 mb-4">
+                    Please send ₹{selectedAmount} to admin via:
+                  </p>
+                  <div className="bg-gray-700 p-4 rounded-lg mb-4">
+                    <p className="font-mono text-yellow-400 break-all">cricxisupport@yahoo.com</p>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Your wallet will be credited after payment verification.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCloseModal}
+                  className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="relative z-10 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -328,24 +407,15 @@ const Profile = () => {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-3">
-                  {/* <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
-                    </svg>
-                    Change Password
-                  </button>
-                  <button className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center">
+                  <button 
+                    onClick={handleAddFunds}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center"
+                  >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Add Funds
                   </button>
-                  <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Delete Account
-                  </button> */}
                 </div>
               </div>
             </div>

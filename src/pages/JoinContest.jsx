@@ -20,42 +20,38 @@ const JoinContest = () => {
   const [balance, setBalance] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Fetch user balance with error handling
   const fetchBalance = useCallback(async () => {
-  if (!user?.uid) return;
-  
-  try {
-    const res = await api.get(`/users/${user.uid}/balance`);
+    if (!user?.uid) return;
     
-    if (res.data && res.data.balance !== undefined) {
-      setBalance(res.data.balance);
-    } else {
-      // Fallback to fetching by email if UID lookup fails
-      const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
-      if (emailRes.data) {
-        setBalance(emailRes.data.walletBalance || 0);
-      } else {
-        setBalance(0);
-      }
-    }
-  } catch (err) {
-    console.error("Error fetching balance:", err);
-    // Try fallback to email if UID fails
     try {
-      const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
-      if (emailRes.data) {
-        setBalance(emailRes.data.walletBalance || 0);
+      const res = await api.get(`/users/${user.uid}/balance`);
+      
+      if (res.data && res.data.balance !== undefined) {
+        setBalance(res.data.balance);
       } else {
+        const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
+        if (emailRes.data) {
+          setBalance(emailRes.data.walletBalance || 0);
+        } else {
+          setBalance(0);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching balance:", err);
+      try {
+        const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
+        if (emailRes.data) {
+          setBalance(emailRes.data.walletBalance || 0);
+        } else {
+          setBalance(0);
+        }
+      } catch (emailErr) {
+        console.error("Fallback email fetch failed:", emailErr);
         setBalance(0);
       }
-    } catch (emailErr) {
-      console.error("Fallback email fetch failed:", emailErr);
-      setBalance(0);
     }
-  }
-}, [user]);
+  }, [user]);
 
-  // Fetch contest details
   const fetchContest = useCallback(async () => {
     try {
       const res = await api.get(`/contests/${contestId}`);
@@ -75,7 +71,6 @@ const JoinContest = () => {
     }
   }, [contestId]);
 
-  // Fetch user's teams for this match with proper error handling
   const fetchTeams = useCallback(async (matchId) => {
     if (!user?.uid) return [];
     
@@ -97,18 +92,15 @@ const JoinContest = () => {
       return teamList;
     } catch (err) {
       console.error("Team fetch error:", err);
-      // Return empty array instead of throwing error
       return [];
     }
   }, [user?.uid]);
 
-  // Main data fetching function
   const fetchContestAndTeams = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      // Fetch in parallel
       const [contestData,] = await Promise.all([
         fetchContest(),
         fetchBalance()
@@ -119,7 +111,6 @@ const JoinContest = () => {
       setContest(contestData);
       setTeams(teamsData);
 
-      // Auto-select team if available
       if (location.state?.newTeamId) {
         setSelectedTeamId(location.state.newTeamId);
       } else if (location.state?.teamId) {
@@ -135,7 +126,6 @@ const JoinContest = () => {
     }
   }, [fetchContest, fetchTeams, fetchBalance, location.state]);
 
-  // Handle joining contest
   const handleJoin = async () => {
     if (!selectedTeamId || !contest || !user) {
       return setError("Please select a valid team.");
@@ -179,7 +169,6 @@ const JoinContest = () => {
     }
   };
 
-  // Initial data load
   useEffect(() => {
     if (user) {
       fetchContestAndTeams();
@@ -320,7 +309,7 @@ const JoinContest = () => {
               </select>
               
               {selectedTeamId && (
-                <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-600">
+                <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-600 mb-4">
                   <h3 className="font-medium mb-2">
                     {teams.find(t => t.id === selectedTeamId)?.teamName}
                   </h3>
@@ -363,13 +352,13 @@ const JoinContest = () => {
             )}
             
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: selectedTeamId ? 1.02 : 1 }}
+              whileTap={{ scale: selectedTeamId ? 0.98 : 1 }}
               onClick={handleJoin}
               disabled={!selectedTeamId || processing || balance < contest?.entryFee}
               className={`w-full py-3 rounded-lg font-bold transition ${
                 selectedTeamId && balance >= contest?.entryFee
-                  ? "bg-yellow-600 hover:bg-yellow-500"
+                  ? "bg-yellow-600 hover:bg-yellow-500 cursor-pointer"
                   : "bg-gray-700 cursor-not-allowed"
               }`}
             >
@@ -382,7 +371,7 @@ const JoinContest = () => {
                   Processing...
                 </span>
               ) : (
-                `Pay ₹${contest?.entryFee} & Join`
+                `Join Contest`
               )}
             </motion.button>
           </div>

@@ -351,11 +351,16 @@ fetchContests();
 
     return contest ? (
       <button
-        onClick={() => navigate(`/join/${contest.id}`)}
-        className="flex-1 flex items-center justify-center gap-2 bg-green-600/80 hover:bg-green-500/80 text-white px-3 py-2 rounded-lg transition"
-      >
-        🏆 Join Contest
-      </button>
+  onClick={() => navigate(`/join/${contest.id}`, { 
+    state: { 
+      teamId: team.id,
+      matchId: team.matchId // Explicitly pass matchId
+    }
+  })}
+  className="flex-1 flex items-center justify-center gap-2 bg-green-600/80 hover:bg-green-500/80 text-white px-3 py-2 rounded-lg transition"
+>
+  🏆 Join Contest
+</button>
     ) : null;
   })()
 }
