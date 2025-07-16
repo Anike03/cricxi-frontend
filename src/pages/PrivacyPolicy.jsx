@@ -1,151 +1,148 @@
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Html, useGLTF } from '@react-three/drei'
-import { motion } from 'framer-motion'
-import styled from 'styled-components'
-import { _useEffect, useRef } from 'react'
+import { useEffect } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
-const PrivacyPolicyContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  color: #fff;
-  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-  min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-`
+const PrivacyPolicy = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-const PolicyContent = styled(motion.div)`
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  margin-top: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  line-height: 1.6;
-`
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        when: "beforeChildren",
+      },
+    },
+  };
 
-const Section = styled(motion.div)`
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  
-  &:last-child {
-    border-bottom: none;
-  }
-`
-
-const ScrollIndicator = styled(motion.div)`
-  position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 1.5rem;
-  opacity: 0.7;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`
-
-const Model = () => {
-  const { scene } = useGLTF('/privacy_shield.glb') // Replace with your actual model
-  return <primitive object={scene} scale={0.5} />
-}
-
-export default function PrivacyPolicy() {
-  const contentRef = useRef(null)
-  
-  const scrollToContent = () => {
-    contentRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 10,
+      },
+    },
+  };
 
   return (
-    <PrivacyPolicyContainer>
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Privacy Policy</h1>
-      <p style={{ opacity: 0.8, marginBottom: '2rem' }}>Last updated: {new Date().toLocaleDateString()}</p>
-      
-      <div style={{ height: '400px', position: 'relative' }}>
-        <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} />
-          <Model />
-          <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={1} />
-        </Canvas>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-yellow-300 mb-4">
+            Privacy Policy
+          </h1>
+          <p className="text-gray-400 max-w-2xl mx-auto">
+            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700/50 p-6 sm:p-8"
+        >
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">1. Introduction</h2>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              Welcome to CRICXI ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our fantasy cricket platform.
+            </p>
+            <p className="text-gray-300 leading-relaxed">
+              By accessing or using our services, you agree to the terms of this Privacy Policy. If you do not agree with our policies and practices, please do not use our services.
+            </p>
+          </motion.section>
+
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">2. Information We Collect</h2>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              We collect various types of information to provide and improve our services to you:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 text-gray-300">
+              <li><strong>Personal Information:</strong> Name, email address, phone number, date of birth, payment information</li>
+              <li><strong>Game Data:</strong> Teams created, contests joined, transactions, gameplay history</li>
+              <li><strong>Device Information:</strong> IP address, browser type, device identifiers, operating system</li>
+              <li><strong>Usage Data:</strong> Pages visited, time spent, interactions with the platform</li>
+            </ul>
+          </motion.section>
+
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">3. How We Use Your Information</h2>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              We use the collected information for various purposes:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 text-gray-300">
+              <li>To provide and maintain our services</li>
+              <li>To notify you about changes to our services</li>
+              <li>To allow you to participate in interactive features</li>
+              <li>To provide customer support</li>
+              <li>To gather analysis to improve our services</li>
+              <li>To monitor usage and detect, prevent technical issues</li>
+              <li>To process transactions and send related information</li>
+            </ul>
+          </motion.section>
+
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">4. Data Security</h2>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction. However, no internet transmission or electronic storage is 100% secure, so we cannot guarantee absolute security.
+            </p>
+          </motion.section>
+
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">5. Third-Party Services</h2>
+            <p className="text-gray-300 mb-4 leading-relaxed">
+              We may employ third-party companies and individuals to facilitate our services, provide services on our behalf, perform service-related services, or assist us in analyzing how our services are used. These third parties have access to your personal information only to perform these tasks on our behalf and are obligated not to disclose or use it for any other purpose.
+            </p>
+          </motion.section>
+
+          <motion.section variants={itemVariants} className="mb-10">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">6. Changes to This Policy</h2>
+            <p className="text-gray-300 leading-relaxed">
+              We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "last updated" date. You are advised to review this Privacy Policy periodically for any changes.
+            </p>
+          </motion.section>
+
+          <motion.section variants={itemVariants}>
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">7. Contact Us</h2>
+            <p className="text-gray-300 leading-relaxed">
+              If you have any questions about this Privacy Policy, please contact us at <Link to="mailto:privacy@cricxi.com" className="text-yellow-400 hover:underline">privacy@cricxi.com</Link>.
+            </p>
+          </motion.section>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="mt-12 text-center"
+        >
+          <Link 
+            to="/" 
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-gray-900 bg-yellow-400 hover:bg-yellow-500 transition-all duration-300 transform hover:scale-105"
+          >
+            Back to Home
+          </Link>
+        </motion.div>
       </div>
+    </motion.div>
+  );
+};
 
-      <ScrollIndicator
-        animate={{ y: [0, 10, 0] }}
-        transition={{ repeat: Infinity, duration: 2 }}
-        onClick={scrollToContent}
-      >
-        <span>↓</span>
-        <span style={{ fontSize: '0.8rem' }}>Scroll Down</span>
-      </ScrollIndicator>
-
-      <PolicyContent
-        ref={contentRef}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-      >
-        <Section>
-          <h2>1. Introduction</h2>
-          <p>Dream11 Fantasy Sports Pvt. Ltd. ("Dream11", "we", "us", or "our") respects your privacy and is committed to protecting it through our compliance with this policy. This Privacy Policy describes the types of information we may collect from you or that you may provide when you use the Dream11 mobile application or website (collectively, the "App") and our practices for collecting, using, maintaining, protecting, and disclosing that information.</p>
-        </Section>
-
-        <Section>
-          <h2>2. Information We Collect</h2>
-          <p>We collect several types of information from and about users of our App, including:</p>
-          <ul>
-            <li><strong>Personal Information:</strong> Name, email address, phone number, date of birth, payment information</li>
-            <li><strong>Device Information:</strong> IP address, browser type, operating system, mobile device identifiers</li>
-            <li><strong>Usage Data:</strong> Pages visited, features used, time spent on the App</li>
-            <li><strong>Game Data:</strong> Teams created, contests joined, performance history</li>
-            <li><strong>Location Data:</strong> Approximate location based on IP address or GPS (with your permission)</li>
-          </ul>
-        </Section>
-
-        <Section>
-          <h2>3. How We Use Your Information</h2>
-          <p>We use information that we collect about you or that you provide to us, including any personal information:</p>
-          <ul>
-            <li>To provide and maintain our App</li>
-            <li>To notify you about changes to our App or services</li>
-            <li>To allow you to participate in interactive features of our App</li>
-            <li>To provide customer support</li>
-            <li>To gather analysis or valuable information so that we can improve our App</li>
-            <li>To monitor the usage of our App</li>
-            <li>To detect, prevent and address technical issues</li>
-            <li>To verify your identity and prevent fraud</li>
-            <li>To comply with legal obligations</li>
-          </ul>
-        </Section>
-
-        <Section>
-          <h2>4. Data Security</h2>
-          <p>We implement appropriate technical and organizational measures to protect the security of your personal information. However, please remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee its absolute security.</p>
-        </Section>
-
-        <Section>
-          <h2>5. Data Retention</h2>
-          <p>We will retain your personal information only for as long as is necessary for the purposes set out in this Privacy Policy. We will retain and use your information to the extent necessary to comply with our legal obligations, resolve disputes, and enforce our policies.</p>
-        </Section>
-
-        <Section>
-          <h2>6. Changes to This Privacy Policy</h2>
-          <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date. You are advised to review this Privacy Policy periodically for any changes.</p>
-        </Section>
-
-        <Section>
-          <h2>7. Contact Us</h2>
-          <p>If you have any questions about this Privacy Policy, please contact us:</p>
-          <ul>
-            <li>By email: privacy@dream11.com</li>
-            <li>By visiting this page on our website: www.dream11.com/contact</li>
-            <li>By mail: Dream11 Fantasy Sports Pvt. Ltd., 601-602, 6th Floor, B-Wing, Marathon Futurex, N.M. Joshi Marg, Lower Parel, Mumbai - 400013, India</li>
-          </ul>
-        </Section>
-      </PolicyContent>
-    </PrivacyPolicyContainer>
-  )
-}
+export default PrivacyPolicy;

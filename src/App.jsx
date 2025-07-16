@@ -83,9 +83,8 @@ function AppRoutes() {
           <Route path="/create-team/:matchId" element={<ProtectedRoute><CreateTeam /></ProtectedRoute>} />
           <Route path="/my-teams/:matchId" element={<ProtectedRoute><MyTeams /></ProtectedRoute>} />
           <Route path="/join/:contestId" element={<ProtectedRoute><JoinContest /></ProtectedRoute>} />
-<Route path="/privacy-policy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
-<Route path="/terms-and-conditions" element={<ProtectedRoute><TermsAndConditions /></ProtectedRoute>} />
-
+          <Route path="/privacy" element={<ProtectedRoute><PrivacyPolicy /></ProtectedRoute>} />
+          <Route path="/terms" element={<ProtectedRoute><TermsAndConditions /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />

@@ -1,265 +1,280 @@
-import { useState, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Text3D, Float } from '@react-three/drei'
-import { motion } from 'framer-motion'
-import styled from 'styled-components'
+import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import * as THREE from 'three';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Stars } from '@react-three/drei';
 
-const TermsContainer = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  color: #fff;
-  background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-  min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-`
+// 3D Background Component
+const ThreeDBackground = () => {
+  const meshRef = useRef();
 
-const Section = styled(motion.div)`
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 15px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  line-height: 1.6;
-  
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-  }
-`
-
-const SectionContent = styled(motion.div)`
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: 1rem;
-`
-
-const RotatingCube = ({ position, color }) => {
-  const meshRef = useRef()
-  
   useFrame(() => {
-    meshRef.current.rotation.x += 0.01
-    meshRef.current.rotation.y += 0.01
-  })
-  
-  return (
-    <mesh ref={meshRef} position={position}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  )
-}
-
-const InteractiveText = ({ content, position }) => {
-  return (
-    <Float speed={2} rotationIntensity={1} floatIntensity={1}>
-      <Text3D
-        font="/fonts/helvetiker_regular.typeface.json"
-        size={0.5}
-        height={0.2}
-        curveSegments={12}
-        bevelEnabled
-        bevelThickness={0.02}
-        bevelSize={0.02}
-        bevelOffset={0}
-        bevelSegments={5}
-        position={position}
-      >
-        {content}
-        <meshStandardMaterial color="#ffffff" />
-      </Text3D>
-    </Float>
-  )
-}
-
-export default function TermsAndConditions() {
-  const [activeSections, setActiveSections] = useState([])
-  
-  const toggleSection = (index) => {
-    setActiveSections(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index) 
-        : [...prev, index]
-    )
-  }
-  
-  const sections = [
-    {
-      title: "1. Acceptance of Terms",
-      content: (
-        <>
-          <p>By accessing or using the Dream11 fantasy sports platform ("Platform"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to all of these Terms, you must not use the Platform.</p>
-          <p>We may modify these Terms at any time, and such modifications shall be effective immediately upon posting on the Platform. Your continued use of the Platform after such modifications constitutes your acceptance of the modified Terms.</p>
-        </>
-      )
-    },
-    {
-      title: "2. Eligibility",
-      content: (
-        <>
-          <p>To use the Platform, you must:</p>
-          <ul>
-            <li>Be at least 18 years of age</li>
-            <li>Be a resident of India</li>
-            <li>Not be a resident of Assam, Odisha, Telangana, Nagaland, or Sikkim where paid contests are prohibited</li>
-            <li>Not be restricted by any legal authority from using such platforms</li>
-          </ul>
-          <p>You may only have one account, and you are prohibited from creating or using additional accounts.</p>
-        </>
-      )
-    },
-    {
-      title: "3. Account Registration",
-      content: (
-        <>
-          <p>To access certain features of the Platform, you must register for an account. When registering, you agree to:</p>
-          <ul>
-            <li>Provide accurate, current, and complete information</li>
-            <li>Maintain and promptly update your account information</li>
-            <li>Maintain the security of your password and accept all risks of unauthorized access</li>
-            <li>Notify us immediately if you discover or suspect any security breaches</li>
-          </ul>
-        </>
-      )
-    },
-    {
-      title: "4. Fantasy Sports Rules",
-      content: (
-        <>
-          <p>The Platform allows you to create fantasy sports teams and participate in contests based on real-world sports events. Key rules include:</p>
-          <ul>
-            <li>Teams must be created before the deadline for each match/event</li>
-            <li>Player selections are subject to salary cap constraints</li>
-            <li>Points are awarded based on actual player performance in real-world events</li>
-            <li>Contest results are final and binding</li>
-          </ul>
-        </>
-      )
-    },
-    {
-      title: "5. Fees and Payments",
-      content: (
-        <>
-          <p>Participation in certain contests may require payment of an entry fee. You agree to:</p>
-          <ul>
-            <li>Pay all fees and applicable taxes</li>
-            <li>Not dispute any payments made through the Platform</li>
-            <li>Accept that all transactions are final with no refunds except as required by law</li>
-          </ul>
-          <p>Winnings will be credited to your account and may be withdrawn subject to verification and applicable laws.</p>
-        </>
-      )
-    },
-    {
-      title: "6. User Conduct",
-      content: (
-        <>
-          <p>You agree not to:</p>
-          <ul>
-            <li>Use the Platform for any unlawful purpose</li>
-            <li>Post or transmit any harmful, threatening, abusive, or offensive material</li>
-            <li>Attempt to gain unauthorized access to the Platform or other users' accounts</li>
-            <li>Use any automated means to interact with the Platform</li>
-            <li>Engage in any fraudulent activity including but not limited to match-fixing</li>
-          </ul>
-        </>
-      )
-    },
-    {
-      title: "7. Intellectual Property",
-      content: (
-        <>
-          <p>The Platform and its original content, features, and functionality are owned by Dream11 and are protected by international copyright, trademark, and other intellectual property laws.</p>
-          <p>You are granted a limited, non-exclusive, non-transferable license to access and use the Platform for personal, non-commercial use.</p>
-        </>
-      )
-    },
-    {
-      title: "8. Termination",
-      content: (
-        <>
-          <p>We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach these Terms.</p>
-          <p>Upon termination, your right to use the Platform will immediately cease. If you wish to terminate your account, you may simply discontinue using the Platform.</p>
-        </>
-      )
-    },
-    {
-      title: "9. Limitation of Liability",
-      content: (
-        <>
-          <p>In no event shall Dream11, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from:</p>
-          <ul>
-            <li>Your access to or use of or inability to access or use the Platform</li>
-            <li>Any conduct or content of any third party on the Platform</li>
-            <li>Any content obtained from the Platform</li>
-            <li>Unauthorized access, use or alteration of your transmissions or content</li>
-          </ul>
-        </>
-      )
-    },
-    {
-      title: "10. Governing Law",
-      content: (
-        <>
-          <p>These Terms shall be governed and construed in accordance with the laws of India, without regard to its conflict of law provisions.</p>
-          <p>Any disputes arising under or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts located in Mumbai, Maharashtra.</p>
-        </>
-      )
-    },
-    {
-      title: "11. Contact Information",
-      content: (
-        <>
-          <p>For any questions about these Terms, please contact us:</p>
-          <ul>
-            <li>By email: legal@dream11.com</li>
-            <li>By visiting this page on our website: www.dream11.com/contact</li>
-            <li>By mail: Dream11 Fantasy Sports Pvt. Ltd., 601-602, 6th Floor, B-Wing, Marathon Futurex, N.M. Joshi Marg, Lower Parel, Mumbai - 400013, India</li>
-          </ul>
-        </>
-      )
+    if (meshRef.current) {
+      meshRef.current.rotation.x += 0.0005;
+      meshRef.current.rotation.y += 0.001;
     }
-  ]
-  
+  });
+
   return (
-    <TermsContainer>
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '2rem', textAlign: 'center' }}>Terms and Conditions</h1>
-      
-      <div style={{ height: '500px', position: 'relative' }}>
+    <>
+      <Stars 
+        radius={100}
+        depth={50}
+        count={5000}
+        factor={4}
+        saturation={0}
+        fade
+        speed={1}
+      />
+      <mesh ref={meshRef}>
+        <icosahedronGeometry args={[2, 1]} />
+        <meshStandardMaterial 
+          color="#f59e0b" 
+          emissive="#f59e0b"
+          emissiveIntensity={0.2}
+          wireframe
+          transparent
+          opacity={0.2}
+        />
+      </mesh>
+      <ambientLight intensity={0.2} />
+      <pointLight position={[10, 10, 10]} intensity={0.5} color="#f59e0b" />
+    </>
+  );
+};
+
+const TermsAndConditions = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        when: "beforeChildren",
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 10,
+      },
+    },
+  };
+
+  return (
+    <div className="relative min-h-screen overflow-hidden">
+      {/* 3D Background */}
+      <div className="absolute inset-0 z-0 opacity-20">
         <Canvas camera={{ position: [0, 0, 10], fov: 50 }}>
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} />
-          <RotatingCube position={[-2, 0, 0]} color="#ff5e62" />
-          <RotatingCube position={[2, 0, 0]} color="#4facfe" />
-          <InteractiveText content="Terms & Conditions" position={[0, 2, 0]} />
-          <OrbitControls enableZoom={false} />
+          <ThreeDBackground />
+          <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} />
         </Canvas>
       </div>
-      
-      {sections.map((section, index) => (
-        <Section
-          key={index}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: index * 0.1 }}
-          onClick={() => toggleSection(index)}
-        >
-          <h2 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {section.title}
-            <span>{activeSections.includes(index) ? '−' : '+'}</span>
-          </h2>
-          {activeSections.includes(index) && (
-            <SectionContent
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              transition={{ duration: 0.3 }}
+
+      {/* Content */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="relative z-10 min-h-screen bg-gradient-to-b from-gray-900/80 via-gray-900/90 to-black/90 text-gray-100 py-12 px-4 sm:px-6 lg:px-8"
+      >
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-center mb-12"
+          >
+            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-yellow-300 mb-4">
+              Terms and Conditions
+            </h1>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Effective date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-700/50 p-6 sm:p-8"
+          >
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                1. Acceptance of Terms
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                By accessing or using the CRICXI fantasy cricket platform ("Service"), you agree to be bound by these Terms and Conditions ("Terms"). If you disagree with any part of the terms, then you may not access the Service.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                2. Eligibility
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                To use our services, you must:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-gray-300">
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Be at least 18 years of age or the legal age of majority in your jurisdiction
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Reside in a jurisdiction where participation in fantasy sports is legal
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Not be restricted by us from using the services
+                </li>
+              </ul>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                3. Account Registration
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                You must provide accurate and complete information when creating an account. You are solely responsible for maintaining the confidentiality of your account and password.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                4. Game Rules
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                All contests are governed by specific game rules that will be displayed within the application. By entering a contest, you agree to abide by these rules.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                5. Payments and Winnings
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                All entry fees must be paid in advance. Winnings will be credited to your account within 24 hours of contest completion. We reserve the right to withhold payments if fraudulent activity is suspected.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                6. User Conduct
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                You agree not to:
+              </p>
+              <ul className="list-disc pl-6 space-y-2 text-gray-300">
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Use the Service for any unlawful purpose
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Create multiple accounts to gain unfair advantage
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Use automated means to interact with the Service
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Engage in any form of cheating or collusion
+                </li>
+                <li className="flex items-start">
+                  <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full mt-2 mr-2"></span>
+                  Harass, threaten, or abuse other users
+                </li>
+              </ul>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                7. Intellectual Property
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                The Service and its original content, features, and functionality are owned by CRICXI and are protected by international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                8. Termination
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                9. Limitation of Liability
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                In no event shall CRICXI, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages resulting from your access to or use of the Service.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants} className="mb-10">
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                10. Governing Law
+              </h2>
+              <p className="text-gray-300 mb-4 leading-relaxed">
+                These Terms shall be governed and construed in accordance with the laws of [Your Country/State], without regard to its conflict of law provisions.
+              </p>
+            </motion.section>
+
+            <motion.section variants={itemVariants}>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full mr-2 animate-pulse"></span>
+                11. Changes to Terms
+              </h2>
+              <p className="text-gray-300 leading-relaxed">
+                We reserve the right, at our sole discretion, to modify or replace these Terms at any time. By continuing to access or use our Service after those revisions become effective, you agree to be bound by the revised terms.
+              </p>
+            </motion.section>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="mt-12 text-center"
+          >
+            <Link 
+              to="/" 
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-gray-900 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
             >
-              {section.content}
-            </SectionContent>
-          )}
-        </Section>
-      ))}
-    </TermsContainer>
-  )
-}
+              Back to Home
+            </Link>
+          </motion.div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export default TermsAndConditions;
