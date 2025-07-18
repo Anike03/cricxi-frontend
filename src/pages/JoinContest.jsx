@@ -71,25 +71,49 @@ const JoinContest = () => {
     }
   }, [contestId]);
 
-  const fetchTeams = useCallback(async (matchId) => {
+  const fetchTeams = useCallback(async (matchId, cricbuzzMatchId) => {
     if (!user?.uid) return [];
     
     try {
       const stringMatchId = String(matchId);
-      const q = query(
-        collection(db, "fantasyTeams"),
-        where("uid", "==", user.uid),
-        where("matchId", "==", stringMatchId)
+      const stringCricbuzzMatchId = String(cricbuzzMatchId);
+
+      const queries = [
+        query(
+          collection(db, "fantasyTeams"),
+          where("uid", "==", user.uid),
+          where("matchId", "==", stringMatchId)
+        ),
+        query(
+          collection(db, "fantasyTeams"),
+          where("uid", "==", user.uid),
+          where("matchId", "==", stringCricbuzzMatchId)
+        ),
+        query(
+          collection(db, "fantasyTeams"),
+          where("uid", "==", user.uid),
+          where("matchMeta.matchId", "==", stringMatchId)
+        ),
+        query(
+          collection(db, "fantasyTeams"),
+          where("uid", "==", user.uid),
+          where("matchMeta.matchId", "==", stringCricbuzzMatchId)
+        )
+      ];
+
+      const snapshots = await Promise.all(queries.map(q => getDocs(q)));
+
+      const teamList = snapshots.flatMap(snapshot => 
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          matchId: String(doc.data().matchId || doc.data().matchMeta?.matchId)
+        }))
       );
 
-      const snapshot = await getDocs(q);
-      const teamList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        matchId: String(doc.data().matchId)
-      }));
-
-      return teamList;
+      return teamList.filter((team, index, self) => 
+        index === self.findIndex(t => t.id === team.id)
+      );
     } catch (err) {
       console.error("Team fetch error:", err);
       return [];
@@ -101,19 +125,15 @@ const JoinContest = () => {
       setLoading(true);
       setError("");
 
-      const [contestData,] = await Promise.all([
-        fetchContest(),
-        fetchBalance()
-      ]);
+      const contestData = await fetchContest();
+      await fetchBalance();
 
-      const teamsData = await fetchTeams(contestData.matchId);
+      const teamsData = await fetchTeams(contestData.matchId, contestData.cricbuzzMatchId);
 
       setContest(contestData);
       setTeams(teamsData);
 
-      if (location.state?.newTeamId) {
-        setSelectedTeamId(location.state.newTeamId);
-      } else if (location.state?.teamId) {
+      if (location.state?.teamId) {
         setSelectedTeamId(location.state.teamId);
       } else if (teamsData.length === 1) {
         setSelectedTeamId(teamsData[0].id);
@@ -144,6 +164,20 @@ const JoinContest = () => {
       setProcessing(true);
       setError("");
       
+      // Deduct balance first
+      if (contest.entryFee > 0) {
+        const deductResponse = await api.post("/users/deduct-balance", {
+          userId: user.uid,
+          amount: contest.entryFee,
+          description: `Contest entry: ${contest.name}`
+        });
+
+        if (!deductResponse.data.success) {
+          throw new Error("Failed to deduct funds from wallet");
+        }
+      }
+
+      // Then join contest
       const response = await api.post("/contests/join", {
         contestId: contest.id,
         userId: user.uid,
@@ -152,9 +186,14 @@ const JoinContest = () => {
       });
 
       if (response.data.success) {
+        // Update local balance
+        if (contest.entryFee > 0) {
+          setBalance(prev => prev - contest.entryFee);
+        }
+        
         setShowSuccess(true);
         setTimeout(() => {
-          navigate(`/my-teams/${contest.matchId}`, {
+          navigate(`/my-contests`, {
             state: { contestJoined: true }
           });
         }, 1500);

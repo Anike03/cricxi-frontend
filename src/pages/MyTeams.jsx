@@ -350,7 +350,8 @@ fetchContests();
 );
 
     return contest ? (
-      <button
+    // In MyTeams.jsx, modify the Join Contest button:
+<button
   onClick={() => navigate(`/join/${contest.id}`, { 
     state: { 
       teamId: team.id,
