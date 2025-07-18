@@ -20,16 +20,9 @@ function CricketBall() {
   const [texture, setTexture] = useState(null);
   
   useEffect(() => {
-    const loader = new THREE.TextureLoader();
-    loader.load(
-      'cricket-ball-texture.jpg',
-      (loadedTexture) => setTexture(loadedTexture),
-      undefined,
-      () => {
-        loader.load('fallback-ball-texture.png', setTexture);
-      }
-    );
-  }, []);
+  setTexture(null); // No texture will be applied
+}, []);
+
 
   useFrame(({ clock }) => {
     if (ballRef.current) {

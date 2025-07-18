@@ -22,40 +22,42 @@ const JoinContest = () => {
 
   const fetchBalance = useCallback(async () => {
     if (!user?.uid) return;
-    
+
     try {
       const res = await api.get(`/users/${user.uid}/balance`);
-      
       if (res.data && res.data.balance !== undefined) {
         setBalance(res.data.balance);
-      } else {
+        return;
+      }
+
+      if (user?.email) {
         const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
         if (emailRes.data) {
           setBalance(emailRes.data.walletBalance || 0);
-        } else {
-          setBalance(0);
+          return;
         }
       }
+      setBalance(0);
     } catch (err) {
       console.error("Error fetching balance:", err);
-      try {
-        const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
-        if (emailRes.data) {
-          setBalance(emailRes.data.walletBalance || 0);
-        } else {
-          setBalance(0);
+      if (user?.email) {
+        try {
+          const emailRes = await api.get(`/users/get-by-email?email=${user.email}`);
+          if (emailRes.data) {
+            setBalance(emailRes.data.walletBalance || 0);
+            return;
+          }
+        } catch (emailErr) {
+          console.error("Fallback email fetch failed:", emailErr);
         }
-      } catch (emailErr) {
-        console.error("Fallback email fetch failed:", emailErr);
-        setBalance(0);
       }
+      setBalance(0);
     }
   }, [user]);
 
   const fetchContest = useCallback(async () => {
     try {
       const res = await api.get(`/contests/${contestId}`);
-      
       if (!res.data) {
         throw new Error("Contest data not found");
       }
@@ -73,37 +75,21 @@ const JoinContest = () => {
 
   const fetchTeams = useCallback(async (matchId, cricbuzzMatchId) => {
     if (!user?.uid) return [];
-    
+
     try {
       const stringMatchId = String(matchId);
       const stringCricbuzzMatchId = String(cricbuzzMatchId);
 
       const queries = [
-        query(
-          collection(db, "fantasyTeams"),
-          where("uid", "==", user.uid),
-          where("matchId", "==", stringMatchId)
-        ),
-        query(
-          collection(db, "fantasyTeams"),
-          where("uid", "==", user.uid),
-          where("matchId", "==", stringCricbuzzMatchId)
-        ),
-        query(
-          collection(db, "fantasyTeams"),
-          where("uid", "==", user.uid),
-          where("matchMeta.matchId", "==", stringMatchId)
-        ),
-        query(
-          collection(db, "fantasyTeams"),
-          where("uid", "==", user.uid),
-          where("matchMeta.matchId", "==", stringCricbuzzMatchId)
-        )
+        query(collection(db, "fantasyTeams"), where("uid", "==", user.uid), where("matchId", "==", stringMatchId)),
+        query(collection(db, "fantasyTeams"), where("uid", "==", user.uid), where("matchId", "==", stringCricbuzzMatchId)),
+        query(collection(db, "fantasyTeams"), where("uid", "==", user.uid), where("matchMeta.matchId", "==", stringMatchId)),
+        query(collection(db, "fantasyTeams"), where("uid", "==", user.uid), where("matchMeta.matchId", "==", stringCricbuzzMatchId))
       ];
 
       const snapshots = await Promise.all(queries.map(q => getDocs(q)));
 
-      const teamList = snapshots.flatMap(snapshot => 
+      const teamList = snapshots.flatMap(snapshot =>
         snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -111,9 +97,7 @@ const JoinContest = () => {
         }))
       );
 
-      return teamList.filter((team, index, self) => 
-        index === self.findIndex(t => t.id === team.id)
-      );
+      return teamList.filter((team, index, self) => index === self.findIndex(t => t.id === team.id));
     } catch (err) {
       console.error("Team fetch error:", err);
       return [];
@@ -151,11 +135,6 @@ const JoinContest = () => {
       return setError("Please select a valid team.");
     }
 
-    const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    if (!selectedTeam) {
-      return setError("Selected team not found. Please refresh the page.");
-    }
-
     if (contest.entryFee > 0 && balance < contest.entryFee) {
       return setError("Insufficient balance to join this contest");
     }
@@ -163,39 +142,23 @@ const JoinContest = () => {
     try {
       setProcessing(true);
       setError("");
-      
-      // Deduct balance first
-      if (contest.entryFee > 0) {
-        const deductResponse = await api.post("/users/deduct-balance", {
-          userId: user.uid,
-          amount: contest.entryFee,
-          description: `Contest entry: ${contest.name}`
-        });
 
-        if (!deductResponse.data.success) {
-          throw new Error("Failed to deduct funds from wallet");
-        }
-      }
+     const response = await api.post("/contestentry/join", {
+  contestId: contest.id,
+  userId: user.uid,
+  userEmail: user.email,   // NEW: add email for fallback
+  teamId: selectedTeamId
+});
 
-      // Then join contest
-      const response = await api.post("/contests/join", {
-        contestId: contest.id,
-        userId: user.uid,
-        teamId: selectedTeamId,
-        entryFee: contest.entryFee
-      });
 
       if (response.data.success) {
-        // Update local balance
         if (contest.entryFee > 0) {
           setBalance(prev => prev - contest.entryFee);
         }
-        
+
         setShowSuccess(true);
         setTimeout(() => {
-          navigate(`/my-contests`, {
-            state: { contestJoined: true }
-          });
+          navigate(`/my-contests`, { state: { contestJoined: true } });
         }, 1500);
       } else {
         throw new Error(response.data.message || "Join failed");
